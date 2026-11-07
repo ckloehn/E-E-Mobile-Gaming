@@ -18,6 +18,22 @@ Paste each prompt into an image generator such as ChatGPT, Gemini, Midjourney or
 
 The game uses the picture automatically when it exists. Until then it shows the drawn background.
 
+## Instructions for an AI agent doing this work
+
+- **Repository:** `ckloehn/e-e-mobile-gaming` on GitHub
+- **Branch:** `ccr-ebff52f2-nccgya`. Work on this branch, or on a new branch made from it. It isn't merged
+  into the main branch yet, so starting from the main branch would miss the game.
+- **Folder:** put pictures in `art/` at the top of the repository. Create the folder if it doesn't exist.
+- **File names (exact):** `art/castle-hall.jpg`, `art/runway-stage.jpg`, `art/title-background.jpg`
+- **Format:** JPG, under about 1 MB each so the game loads quickly on a phone. The sizes are listed with
+  each prompt below.
+- **No code changes needed.** `index.html` already loads these files and `js/game.js` uses each one when
+  it exists. If you add new kinds of files, also add them to the `FILES` list in `sw.js` and change
+  `VERSION` there, so the game works offline.
+- **Keep it ad-free and kid-safe:** no brand names, logos, text or people in the pictures. The game is for a
+  5-year-old.
+- **Don't change** `js/avatar.js` (the doll drawings) or `js/data.js` (items and characters) for this task.
+
 ---
 
 ## 1. Castle great hall: `art/castle-hall.jpg`
