@@ -147,3 +147,14 @@ item, keep everything else the same, then cut the item out onto its own transpar
 ## When you're done
 
 After each body type: commit, push, and reply with what's done and anything that didn't line up.
+
+## Fixes needed (found when stacking the pieces in the game)
+
+1. **`art/dolls/man/base.png`: repaint the underclothes.** The white T-shirt's sleeves and shoulders show
+   behind every top, and the gray shorts peek out at the hips under pants. Repaint Daddy wearing a **snug
+   white sleeveless tank top** and **short, snug gray shorts** (mid-thigh, fitted), like the woman doll's
+   base. Keep his face, head, body, pose, size and position exactly the same, so all of his existing
+   clothes still line up. Then check that every `man` top and bottom fully covers the new underclothes.
+2. **`art/dolls/man/bottom-jeans.png`: remove the step at mid-thigh.** The legs suddenly get narrower
+   partway down, leaving a hard horizontal edge. Repaint the jeans with smooth legs that taper evenly
+   from hip to ankle, in the same position.
