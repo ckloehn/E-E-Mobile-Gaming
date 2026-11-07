@@ -150,19 +150,31 @@ svg { display: block; overflow: visible; }
 @keyframes breathe { 50% { transform: scale(1.06); } }
 
 /* ---------- Castle ---------- */
-.castle .bar { position: absolute; top: env(safe-area-inset-top, 0px); left: 0; right: 0; }
+.castle .bar { position: absolute; top: env(safe-area-inset-top, 0px); left: 0; right: 0; z-index: 80; }
 .hall { flex: 1; position: relative; overflow: hidden; }
 .hall-art { position: absolute; inset: 0; width: 100%; height: 100%; }
 .family { position: absolute; inset: 0; pointer-events: none; }
+/* Depth: --d goes from 0 (front) to 1 (back by the throne). Further back is higher up the floor and smaller. */
 .actor {
-  position: absolute; bottom: 3%; transform: translateX(-50%);
-  transition-property: left; transition-timing-function: linear;
+  position: absolute; bottom: calc(2% + var(--d, 0) * 14%);
+  transform: translateX(-50%) scale(calc(1 - var(--d, 0) * .22)); transform-origin: 50% 100%;
+  transition-property: left, bottom, transform; transition-timing-function: linear;
   pointer-events: auto;
 }
+.actor .person svg { filter: drop-shadow(0 10px 8px rgba(75,42,107,.28)) drop-shadow(-6px 0 10px rgba(255,255,255,.25)); }
+
+/* A soft reflection on the shiny marble floor */
+.flip { position: relative; }
+.reflection {
+  position: absolute; left: 0; right: 0; top: 94%; transform: scaleY(-1);
+  opacity: .2; pointer-events: none;
+  -webkit-mask-image: linear-gradient(to top, #000 0%, transparent 28%); mask-image: linear-gradient(to top, #000 0%, transparent 28%);
+}
+.actor .reflection svg { filter: blur(1px); }
+.castle .castle-actions { position: relative; z-index: 70; }
 .person { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 0 1 auto; }
 .person svg { height: min(56vh, 60vw); width: auto; filter: drop-shadow(0 8px 6px rgba(75,42,107,.22)); }
 .flip { display: block; transition: transform .25s; }
-.face-left .flip { transform: scaleX(-1); }
 .person:active .flip { transform: scale(.95); }
 
 /* Speech bubbles */

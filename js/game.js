@@ -160,10 +160,10 @@ function reward(title, bodyHtml, after) {
 function renderCastle() {
   const fam = $('[data-family]');
   fam.innerHTML = state.chars.map((c, i) => `
-    <div class="actor ${c.kind}" data-actor="${i}" style="left:${Castle.spot(i)}%">
+    <div class="actor ${c.kind}" data-actor="${i}" style="left:${Castle.spot(i)}%;--d:${Castle.depth(i)};z-index:${Castle.layer(Castle.depth(i))}">
       <div class="bubble" hidden></div>
       <button class="person" data-action="dress" data-i="${i}" aria-label="Dress up ${escapeHtml(c.name)}">
-        <span class="flip">${Doll.full(c)}</span>
+        <span class="flip">${Doll.full(c)}<span class="reflection" aria-hidden="true">${Doll.full(c)}</span></span>
         <span class="name">${escapeHtml(c.name)}</span>
       </button>
     </div>`).join('');
@@ -175,18 +175,23 @@ function renderCastle() {
 }
 
 // The family walks around the castle, waves, dances and chats with each other.
+// They always face the camera, like dolls on a stage.
 const Castle = (() => {
+  // x is across the room (percent), d is how far back (0 = front, 1 = back by the throne).
   const home = [16, 38, 62, 84];
+  const homeDepth = [0.4, 0.65, 0.05, 0.25];
   let actors = [];
   let timers = [];
   let ticker = null;
 
   const later = (fn, ms) => timers.push(setTimeout(fn, ms));
   const spot = i => home[i % home.length];
+  const depth = i => homeDepth[i % homeDepth.length];
+  const layer = d => 10 + Math.round((1 - d) * 50);
 
   function start() {
     stop();
-    actors = state.chars.map((c, i) => ({ i, el: $(`[data-actor="${i}"]`), x: spot(i), busy: false }));
+    actors = state.chars.map((c, i) => ({ i, el: $(`[data-actor="${i}"]`), x: spot(i), d: depth(i), busy: false }));
     if (!actors.length || !actors[0].el) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     later(direct, 1200);
@@ -201,14 +206,18 @@ const Castle = (() => {
     $$('.actor .bubble').forEach(b => { b.hidden = true; });
   }
 
-  function walk(a, x, then) {
+  // Walk across and forward or back. Further back means higher up the floor and a little smaller.
+  function walk(a, x, then, d = a.d) {
     x = Math.max(9, Math.min(91, x));
-    const secs = Math.max(0.8, Math.abs(x - a.x) * 0.085);
-    a.el.classList.toggle('face-left', x < a.x);
+    d = Math.max(0, Math.min(1, d));
+    const secs = Math.max(0.8, Math.hypot(x - a.x, (d - a.d) * 45) * 0.085);
     a.el.classList.add('walking');
     a.el.style.transitionDuration = secs + 's';
     a.el.style.left = x + '%';
+    a.el.style.setProperty('--d', d);
+    a.el.style.zIndex = layer(d);
     a.x = x;
+    a.d = d;
     later(() => { a.el.classList.remove('walking'); if (then) then(); }, secs * 1000);
   }
 
@@ -233,15 +242,22 @@ const Castle = (() => {
     let target = b.x + side * 17;
     if (target < 9 || target > 91) target = b.x - side * 17;
     walk(a, target, () => {
-      a.el.classList.toggle('face-left', a.x > b.x);
-      b.el.classList.toggle('face-left', b.x > a.x);
       const lines = pick(CHATS);
       lines.forEach((line, k) => later(() => say(k % 2 ? b : a, line, 2900), k * 3100));
       later(() => {
         if (Math.random() < 0.4) { act(a, 'dancing', 1600); act(b, 'dancing', 1600); }
         later(() => { a.busy = b.busy = false; }, 1700);
       }, lines.length * 3100);
-    });
+    }, b.d);
+  }
+
+  // A place on the floor that isn't right on top of someone else.
+  function openSpot(a) {
+    for (let tries = 0; tries < 30; tries++) {
+      const x = 9 + Math.random() * 82, d = Math.random();
+      if (actors.every(o => o === a || Math.abs(o.x - x) > 15 || Math.abs(o.d - d) > 0.45)) return [x, d];
+    }
+    return [a.x, a.d];
   }
 
   function direct() {
@@ -255,12 +271,12 @@ const Castle = (() => {
     a.busy = true;
     const done = () => { a.busy = false; };
     const r = Math.random();
-    if (r < 0.6) walk(a, 9 + Math.random() * 82, done);
+    if (r < 0.6) { const [x, d] = openSpot(a); walk(a, x, done, d); }
     else if (r < 0.82) act(a, 'waving', 2200, done);
     else act(a, 'dancing', 2400, done);
   }
 
-  return { start, stop, spot, chat: (i, j) => chat(actors[i], actors[j]) };
+  return { start, stop, spot, depth, layer, chat: (i, j) => chat(actors[i], actors[j]) };
 })();
 
 function escapeHtml(s) {
