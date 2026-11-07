@@ -7,7 +7,8 @@ A dress-up game in a rainbow castle. You dress up your family and friends howeve
 You can't lose. Just play!
 
 ## Who lives in the castle?
-**Mommy, Daddy, Me and Best Friend.** Grown-ups can change their names. Everyone can be changed:
+**Mommy, Daddy, Me and Sister.** Grown-ups can change their names. They walk around the castle,
+wave, dance and talk to each other in speech bubbles. Tap a bubble to hear what they say! Everyone can be changed:
 skin, eyes, eye color, hair, hair color, lipstick, face paint, tops, dresses, pants, skirts, shoes,
 nails, hats and extras like wings, a cape or a magic wand.
 
@@ -47,4 +48,5 @@ Bright rainbow colors, twinkling sparkles and a happy castle song. The 🎵 butt
 - Pets to dress up
 - Her own drawings turned into clothes
 - More family members (add the real family!)
+- Painted backgrounds made with an AI image tool (see [art prompts](art-prompts.md))
 - A word game, like "find the purple shoes"

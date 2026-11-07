@@ -121,6 +121,13 @@ svg { display: block; overflow: visible; }
 }
 .say-btn:active { transform: scale(.9); }
 
+/* ---------- Painted backgrounds (optional) ----------
+   If a picture exists in the art/ folder it covers the drawn background. See docs/art-prompts.md. */
+.art-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 100%; pointer-events: none; }
+.has-art > .hall-art, .has-art > .curtain, .has-art > .lights { display: none; }
+.title .art-img { object-position: 50% 50%; }
+.title > :not(.art-img) { position: relative; }
+
 /* ---------- Title ---------- */
 .title { align-items: center; justify-content: center; gap: 36px; text-align: center; padding-inline: 16px; }
 .logo { display: flex; flex-direction: column; align-items: center; gap: 8px; }
@@ -144,14 +151,63 @@ svg { display: block; overflow: visible; }
 .castle .bar { position: absolute; top: env(safe-area-inset-top, 0px); left: 0; right: 0; }
 .hall { flex: 1; position: relative; overflow: hidden; }
 .hall-art { position: absolute; inset: 0; width: 100%; height: 100%; }
-.family {
-  position: absolute; left: 0; right: 0; bottom: 4%;
-  display: flex; align-items: flex-end; justify-content: center; gap: min(3vw, 28px);
-  padding-inline: 16px;
+.family { position: absolute; inset: 0; pointer-events: none; }
+.actor {
+  position: absolute; bottom: 3%; transform: translateX(-50%);
+  transition-property: left; transition-timing-function: linear;
+  pointer-events: auto;
 }
 .person { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 0 1 auto; }
-.person svg { height: min(56vh, 52vw); width: auto; filter: drop-shadow(0 8px 6px rgba(75,42,107,.22)); animation: bob 3s ease-in-out infinite; animation-delay: var(--d, 0s); }
-.person:active svg { transform: scale(.95); }
+.person svg { height: min(56vh, 60vw); width: auto; filter: drop-shadow(0 8px 6px rgba(75,42,107,.22)); }
+.flip { display: block; transition: transform .25s; }
+.face-left .flip { transform: scaleX(-1); }
+.person:active .flip { transform: scale(.95); }
+
+/* Speech bubbles */
+.bubble {
+  position: absolute; bottom: calc(100% - 4%); left: 50%; transform: translateX(-50%);
+  background: var(--paper); border-radius: 20px; padding: 6px 6px 6px 14px; box-shadow: var(--glow);
+  font-family: var(--font-read); font-weight: 700; font-size: clamp(15px, 2.2vw, 22px); line-height: 1.25;
+  width: max-content; max-width: min(46vw, 300px); text-align: center; z-index: 2;
+  display: flex; align-items: center; gap: 2px; animation: rise .3s cubic-bezier(.3,1.5,.5,1);
+}
+.actor.kid .bubble { bottom: calc(100% - 22%); }
+.bubble::after {
+  content: ""; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+  border: 10px solid transparent; border-top-color: var(--paper);
+}
+.bubble .say-btn { width: 34px; height: 34px; font-size: 17px; flex: none; }
+
+/* Moving arms, legs and head. Each part turns around its top (shoulder or hip); the head around the neck. */
+.doll .leg, .doll .arm { transform-box: fill-box; transform-origin: 50% 2%; }
+.doll .head { transform-box: fill-box; transform-origin: 50% 96%; }
+.doll { animation: breathe-doll 3.2s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+@keyframes breathe-doll { 50% { transform: translateY(-4px); } }
+.walking .doll { animation: walk-bob .26s ease-in-out infinite alternate; }
+.walking .leg-l { animation: swing-a .52s ease-in-out infinite alternate; }
+.walking .leg-r { animation: swing-b .52s ease-in-out infinite alternate; }
+.walking .arm-l { animation: swing-b .52s ease-in-out infinite alternate; }
+.walking .arm-r { animation: swing-a .52s ease-in-out infinite alternate; }
+@keyframes walk-bob { from { transform: translateY(0); } to { transform: translateY(-9px); } }
+@keyframes swing-a { from { transform: rotate(-11deg); } to { transform: rotate(11deg); } }
+@keyframes swing-b { from { transform: rotate(11deg); } to { transform: rotate(-11deg); } }
+.waving .arm-r { animation: wave .38s ease-in-out infinite alternate; }
+@keyframes wave { from { transform: rotate(-150deg); } to { transform: rotate(-118deg); } }
+.waving .head { animation: tilt 1s ease-in-out infinite alternate; }
+.talking .head { animation: nod .32s ease-in-out infinite alternate; }
+.talking .arm-l { animation: gesture .7s ease-in-out infinite alternate; }
+@keyframes nod { from { transform: rotate(-2deg); } to { transform: rotate(3deg) translateY(1px); } }
+@keyframes tilt { from { transform: rotate(-5deg); } to { transform: rotate(5deg); } }
+@keyframes gesture { from { transform: rotate(4deg); } to { transform: rotate(34deg); } }
+.dancing .doll { animation: hop .36s ease-in-out infinite alternate; }
+.dancing .arm-l { animation: dance-l .36s ease-in-out infinite alternate; }
+.dancing .arm-r { animation: dance-r .36s ease-in-out infinite alternate; }
+.dancing .leg-l { animation: swing-a .36s ease-in-out infinite alternate; }
+@keyframes hop { from { transform: translateY(0) rotate(-2deg); } to { transform: translateY(-18px) rotate(2deg); } }
+@keyframes dance-l { from { transform: rotate(130deg); } to { transform: rotate(160deg); } }
+@keyframes dance-r { from { transform: rotate(-160deg); } to { transform: rotate(-130deg); } }
+.wings { animation: flutter .5s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: 50% 40%; }
+@keyframes flutter { to { transform: scaleX(.9); } }
 .person .name {
   font-family: var(--font-display); font-weight: 800; font-size: clamp(16px, 2.6vw, 24px);
   background: var(--paper); border-radius: 999px; padding: 0 14px; box-shadow: var(--glow); white-space: nowrap;
@@ -245,10 +301,10 @@ svg { display: block; overflow: visible; }
 }
 .none-mark { position: absolute; top: 4px; right: 8px; font-size: 18px; color: #FF4757; font-weight: 700; }
 
-/* Phones held upright: two rows of people so everyone is big enough to tap */
+/* Phones held upright */
 @media (orientation: portrait) and (max-width: 600px) {
-  .family { flex-wrap: wrap; row-gap: 6px; column-gap: 10%; bottom: 2%; }
-  .person svg { height: min(31vh, 84vw); }
+  .person svg { height: min(46vh, 66vw); }
+  .bubble { max-width: 58vw; }
 }
 
 /* Side by side on wide screens (iPad sideways) */
@@ -263,7 +319,7 @@ svg { display: block; overflow: visible; }
   .dress .bar { grid-column: 1 / -1; padding-block: 4px; }
   .dress .panel { height: auto; border-radius: 22px 0 0 0; }
   .round-btn { width: 46px; height: 46px; font-size: 22px; }
-  .person svg { height: 54vh; }
+  .person svg { height: 58vh; }
 }
 
 /* ---------- Fashion show: pick a model ---------- */

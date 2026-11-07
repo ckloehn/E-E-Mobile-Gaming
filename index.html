@@ -32,6 +32,18 @@
     <linearGradient id="g-silver" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#FFFFFF"/><stop offset=".5" stop-color="#C9CEDF"/><stop offset="1" stop-color="#F2F4FA"/>
     </linearGradient>
+    <!-- soft light on the left, shadow on the right: gives clothes and skin a rounded look -->
+    <linearGradient id="g-vol" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fff" stop-opacity=".3"/><stop offset=".35" stop-color="#fff" stop-opacity="0"/>
+      <stop offset=".62" stop-color="#3C0A3C" stop-opacity="0"/><stop offset="1" stop-color="#3C0A3C" stop-opacity=".24"/>
+    </linearGradient>
+    <radialGradient id="g-hair" cx=".45" cy=".25" r=".8">
+      <stop offset=".35" stop-color="#fff" stop-opacity=".12"/><stop offset="1" stop-color="#28081E" stop-opacity=".36"/>
+    </radialGradient>
+    <radialGradient id="g-face" cx=".42" cy=".4" r=".7">
+      <stop offset="0" stop-color="#fff" stop-opacity=".25"/><stop offset=".55" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="1" stop-color="#78283C" stop-opacity=".14"/>
+    </radialGradient>
     <radialGradient id="g-iris" cx=".5" cy=".6" r=".6">
       <stop offset=".45" stop-color="rgba(255,255,255,.25)"/><stop offset="1" stop-color="rgba(20,10,30,.55)"/>
     </radialGradient>
@@ -54,6 +66,7 @@
 
   <!-- Title -->
   <section id="screen-title" class="screen title">
+    <img class="art-img" data-art src="art/title-background.jpg" alt="">
     <div class="logo">
       <div class="logo-egg" aria-hidden="true">
         <svg viewBox="0 0 120 150"><use href="#egg-shape"/></svg>
@@ -73,6 +86,7 @@
       </div>
     </header>
     <div class="hall">
+      <img class="art-img" data-art src="art/castle-hall.jpg" alt="">
       <svg class="hall-art" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
         <defs>
           <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD6F0"/><stop offset="1" stop-color="#E9DAFF"/></linearGradient>
@@ -160,6 +174,7 @@
 
   <!-- Runway -->
   <section id="screen-runway" class="screen runway" hidden>
+    <img class="art-img" data-art src="art/runway-stage.jpg" alt="">
     <div class="curtain left"></div><div class="curtain right"></div>
     <div class="lights" aria-hidden="true"><i></i><i></i><i></i></div>
     <div class="runway-model" data-runway-model></div>

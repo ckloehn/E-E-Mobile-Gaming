@@ -6,6 +6,7 @@ works like a regular app, even offline.
 
 - [Game plan](docs/game-plan.md) (written for kids)
 - [Interview notes](docs/interview-notes.md)
+- [Art prompts](docs/art-prompts.md) for painted backgrounds made with an AI image generator
 
 ## Put it on the iPad and phone
 
@@ -38,9 +39,10 @@ Plain HTML, CSS and JavaScript with no build step and no libraries.
 |---|---|
 | `index.html` | The screens: title, castle, dress-up, fashion show, runway |
 | `js/data.js` | Every item, price, character and fashion show theme |
-| `js/avatar.js` | Draws the characters |
+| `js/avatar.js` | Draws the characters, with arms, legs and head as separate moving parts |
 | `js/audio.js` | Music, sound effects and read-aloud |
-| `js/game.js` | Coins, unlocking, the surprise egg and the fashion show |
+| `js/game.js` | Coins, unlocking, the surprise egg, the fashion show, and the family walking and chatting |
+| `art/` | Optional painted backgrounds. The game uses them when they're present |
 | `sw.js` | Lets the game work offline. Change `VERSION` when you update files. |
 
 To try it on a computer, run `python3 -m http.server` in this folder and open http://localhost:8000.

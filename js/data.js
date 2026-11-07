@@ -154,16 +154,16 @@ const DEFAULT_CHARACTERS = [
     shoes: 'shoes-sandals-brown', nails: 'nails-pink', hat: 'hat-none', extra: 'extra-none' } },
   { id: 'daddy', name: 'Daddy', kind: 'broad', look: {
     skin: 'skin-honey', eyes: 'eyes-round', eyeColor: 'eyec-brown', hair: 'hair-short', hairColor: 'hairc-brown',
-    lips: 'lips-none', face: 'face-none', top: 'top-tee-blue', dress: null, bottom: 'bottom-pants-black',
+    lips: 'lips-none', face: 'face-none', top: 'top-long-red', dress: null, bottom: 'bottom-pants-black',
     shoes: 'shoes-sneakers-white', nails: 'nails-none', hat: 'hat-none', extra: 'extra-glasses' } },
   { id: 'me', name: 'Me', kind: 'kid', look: {
-    skin: 'skin-cream', eyes: 'eyes-round', eyeColor: 'eyec-green', hair: 'hair-pigtails', hairColor: 'hairc-ginger',
+    skin: 'skin-peach', eyes: 'eyes-lashes', eyeColor: 'eyec-blue', hair: 'hair-pigtails', hairColor: 'hairc-blonde',
     lips: 'lips-none', face: 'face-blush', top: null, dress: 'dress-tutu-lightpink', bottom: null,
     shoes: 'shoes-flats-lightpink', nails: 'nails-purple', hat: 'hat-bow', extra: 'extra-none' } },
-  { id: 'friend', name: 'Best Friend', kind: 'kid', look: {
-    skin: 'skin-cocoa', eyes: 'eyes-happy', eyeColor: 'eyec-brown', hair: 'hair-puffs', hairColor: 'hairc-black',
-    lips: 'lips-none', face: 'face-freckles', top: 'top-tee-yellow', dress: null, bottom: 'bottom-shorts-blue',
-    shoes: 'shoes-sneakers-pink', nails: 'nails-none', hat: 'hat-none', extra: 'extra-none' } },
+  { id: 'sister', name: 'Sister', kind: 'kid', look: {
+    skin: 'skin-peach', eyes: 'eyes-lashes', eyeColor: 'eyec-blue', hair: 'hair-ponytail', hairColor: 'hairc-blonde',
+    lips: 'lips-none', face: 'face-blush', top: 'top-tee-pink', dress: null, bottom: 'bottom-skirt-purple',
+    shoes: 'shoes-sneakers-white', nails: 'nails-pink', hat: 'hat-none', extra: 'extra-none' } },
 ];
 
 // Fashion show themes. Each one scores 0 to 3 for how well an outfit fits.
@@ -191,3 +191,22 @@ function countWhere(outfit, test) {
 }
 
 const PRAISE = ['Beautiful!', 'So pretty!', 'Amazing!', 'Wow, so stylish!', 'Fabulous!', 'Super cool!', 'Gorgeous!', 'Looking great!'];
+
+// Little things the family says to each other while they walk around the castle.
+// Short, simple words for a new reader. Tap a bubble to hear it.
+const CHATS = [
+  ['I like your dress!', 'Thank you! I like your shoes!'],
+  ['Want to have a tea party?', 'Yes! With cupcakes!'],
+  ['Let\'s go to the fashion show!', 'Yay! I will wear a crown!'],
+  ['What is your favorite color?', 'Pink! And purple!'],
+  ['Do you want to dance?', 'Yes! La la la!'],
+  ['The castle is so pretty!', 'It has rainbows!'],
+  ['I love you!', 'I love you too!'],
+  ['Let\'s play dress up!', 'Okay! You pick first!'],
+  ['Look, a rainbow!', 'So many colors!'],
+  ['Are you hungry?', 'Yes! Let\'s have pizza!'],
+  ['Your hair looks pretty!', 'Thank you! I like it too!'],
+  ['Can we go to the park?', 'Yes! Let\'s go swing!'],
+  ['Good morning!', 'Good morning! Did you sleep well?'],
+  ['Hug time!', 'Big hug!'],
+];

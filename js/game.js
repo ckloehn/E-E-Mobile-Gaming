@@ -16,13 +16,29 @@ function freshState() {
     lastEgg: '',
     rewarded: {},
     settings: { autoRead: false, music: true },
+    version: 2,
   };
+}
+
+// Version 2 made the kids look like Mommy, turned Best Friend into Sister and gave Daddy his own build.
+// Mommy keeps her outfit; everyone keeps the name a grown-up gave them.
+function migrate(saved) {
+  if ((saved.version || 1) >= 2) return saved;
+  const old = id => saved.chars.find(c => c.id === id);
+  saved.chars = clone(DEFAULT_CHARACTERS).map(c => {
+    const prev = old(c.id);
+    if (prev && prev.name) c.name = prev.name;
+    if (c.id === 'mommy' && prev) c.look = prev.look;
+    return c;
+  });
+  saved.version = 2;
+  return saved;
 }
 
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(SAVE_KEY));
-    if (saved && saved.chars) return { ...freshState(), ...saved, settings: { ...freshState().settings, ...saved.settings } };
+    if (saved && saved.chars) return { ...freshState(), ...migrate(saved), settings: { ...freshState().settings, ...saved.settings } };
   } catch (e) { /* no saved game yet */ }
   return freshState();
 }
@@ -72,6 +88,7 @@ function lookWith(look, item) {
 
 function show(id) {
   $$('.screen').forEach(s => { s.hidden = s.id !== `screen-${id}`; });
+  if (id === 'castle') Castle.start(); else Castle.stop();
   if (state.settings.music) Sound.startMusic();
 }
 
@@ -122,15 +139,108 @@ function reward(title, bodyHtml, after) {
 function renderCastle() {
   const fam = $('[data-family]');
   fam.innerHTML = state.chars.map((c, i) => `
-    <button class="person ${c.kind}" data-action="dress" data-i="${i}" style="--d:${i * 0.4}s">
-      ${Avatar.svg(c.look, c.kind)}
-      <span class="name">${escapeHtml(c.name)}</span>
-    </button>`).join('');
+    <div class="actor ${c.kind}" data-actor="${i}" style="left:${Castle.spot(i)}%">
+      <div class="bubble" hidden></div>
+      <button class="person" data-action="dress" data-i="${i}" aria-label="Dress up ${escapeHtml(c.name)}">
+        <span class="flip">${Avatar.svg(c.look, c.kind)}</span>
+        <span class="name">${escapeHtml(c.name)}</span>
+      </button>
+    </div>`).join('');
   $('[data-egg-badge]').hidden = state.lastEgg === today();
   $('.egg-btn').classList.toggle('ready', state.lastEgg !== today());
   $('[data-action="music"]').classList.toggle('off', !state.settings.music);
   decorate($('#screen-castle'));
+  if (!$('#screen-castle').hidden) Castle.start();
 }
+
+// The family walks around the castle, waves, dances and chats with each other.
+const Castle = (() => {
+  const home = [16, 38, 62, 84];
+  let actors = [];
+  let timers = [];
+  let ticker = null;
+
+  const later = (fn, ms) => timers.push(setTimeout(fn, ms));
+  const spot = i => home[i % home.length];
+
+  function start() {
+    stop();
+    actors = state.chars.map((c, i) => ({ i, el: $(`[data-actor="${i}"]`), x: spot(i), busy: false }));
+    if (!actors.length || !actors[0].el) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    later(direct, 1200);
+    ticker = setInterval(direct, 2600);
+  }
+
+  function stop() {
+    clearInterval(ticker);
+    timers.forEach(clearTimeout);
+    timers = [];
+    actors.forEach(a => a.el && a.el.classList.remove('walking', 'waving', 'dancing', 'talking'));
+    $$('.actor .bubble').forEach(b => { b.hidden = true; });
+  }
+
+  function walk(a, x, then) {
+    x = Math.max(9, Math.min(91, x));
+    const secs = Math.max(0.8, Math.abs(x - a.x) * 0.085);
+    a.el.classList.toggle('face-left', x < a.x);
+    a.el.classList.add('walking');
+    a.el.style.transitionDuration = secs + 's';
+    a.el.style.left = x + '%';
+    a.x = x;
+    later(() => { a.el.classList.remove('walking'); if (then) then(); }, secs * 1000);
+  }
+
+  function act(a, cls, ms, then) {
+    a.el.classList.add(cls);
+    later(() => { a.el.classList.remove(cls); if (then) then(); }, ms);
+  }
+
+  function say(a, text, ms) {
+    const b = $('.bubble', a.el);
+    b.innerHTML = `<span class="say">${escapeHtml(text)}</span>`;
+    decorate(b);
+    b.hidden = false;
+    a.el.classList.add('talking');
+    if (state.settings.autoRead) Sound.say(text, $('.say', b));
+    later(() => { b.hidden = true; a.el.classList.remove('talking'); }, ms);
+  }
+
+  function chat(a, b) {
+    a.busy = b.busy = true;
+    const side = a.x < b.x ? -1 : 1;
+    let target = b.x + side * 17;
+    if (target < 9 || target > 91) target = b.x - side * 17;
+    walk(a, target, () => {
+      a.el.classList.toggle('face-left', a.x > b.x);
+      b.el.classList.toggle('face-left', b.x > a.x);
+      const lines = pick(CHATS);
+      lines.forEach((line, k) => later(() => say(k % 2 ? b : a, line, 2900), k * 3100));
+      later(() => {
+        if (Math.random() < 0.4) { act(a, 'dancing', 1600); act(b, 'dancing', 1600); }
+        later(() => { a.busy = b.busy = false; }, 1700);
+      }, lines.length * 3100);
+    });
+  }
+
+  function direct() {
+    const idle = actors.filter(a => !a.busy);
+    if (!idle.length) return;
+    if (idle.length >= 2 && Math.random() < 0.35) {
+      const a = pick(idle);
+      return chat(a, pick(idle.filter(o => o !== a)));
+    }
+    const a = pick(idle);
+    a.busy = true;
+    const done = () => { a.busy = false; };
+    const r = Math.random();
+    if (r < 0.6) walk(a, 9 + Math.random() * 82, done);
+    else if (r < 0.82) act(a, 'waving', 2200, done);
+    else act(a, 'dancing', 2400, done);
+  }
+
+  return { start, stop, spot, chat: (i, j) => chat(actors[i], actors[j]) };
+})();
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -338,7 +448,8 @@ function runway() {
   const total = stars.reduce((a, b) => a + b, 0);
 
   $('[data-runway-model]').innerHTML = Avatar.svg(look, ui.char.kind);
-  $('[data-runway-model]').className = 'runway-model walk';
+  $('[data-runway-model]').className = 'runway-model walk walking';
+  setTimeout(() => $('[data-runway-model]').classList.remove('walking'), 2400);
   $('[data-judges]').innerHTML = JUDGES.map(j => `
     <div class="judge"><div class="card" data-card>${'<span class="s">★</span>'.repeat(3)}</div><span class="face" aria-hidden="true">${j.icon}</span></div>`).join('');
   $('[data-result]').hidden = true;
@@ -369,7 +480,7 @@ function openGrownups() {
   $('#set-autoread').checked = state.settings.autoRead;
   $('#set-music').checked = state.settings.music;
   $('[data-names]').innerHTML = state.chars.map((c, i) =>
-    `<label class="row"><span class="mini-face">${Avatar.head(c.look)}</span><input type="text" id="name-${c.id}" data-name="${i}" value="${escapeHtml(c.name)}" maxlength="16"></label>`).join('');
+    `<label class="row"><span class="mini-face">${Avatar.head(c.look, c.kind)}</span><input type="text" id="name-${c.id}" data-name="${i}" value="${escapeHtml(c.name)}" maxlength="16"></label>`).join('');
   $('[data-reset-confirm]').hidden = true;
   openSheet('grownups');
 }
@@ -448,6 +559,14 @@ document.addEventListener('input', e => {
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) Sound.stopMusic();
   else if (state.settings.music && $('#screen-title').hidden) Sound.startMusic();
+});
+
+// Painted backgrounds are optional: use one if it loads, otherwise keep the drawn one.
+$$('[data-art]').forEach(img => {
+  const ok = () => img.parentElement.classList.add('has-art');
+  const missing = () => img.remove();
+  if (img.complete) { if (img.naturalWidth) ok(); else missing(); }
+  else { img.addEventListener('load', ok); img.addEventListener('error', missing); }
 });
 
 // ---------- Start ----------

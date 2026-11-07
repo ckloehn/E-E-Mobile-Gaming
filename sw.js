@@ -1,6 +1,6 @@
 // Keeps the game working offline after the first visit.
 // Bump VERSION whenever game files change so devices pick up the update.
-const VERSION = 'egg-house-2';
+const VERSION = 'egg-house-3';
 const FILES = [
   './', 'index.html', 'css/style.css', 'js/data.js', 'js/avatar.js', 'js/audio.js', 'js/game.js',
   'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
