@@ -208,6 +208,13 @@ svg { display: block; overflow: visible; }
 @keyframes hop { from { transform: translateY(0) rotate(-2deg); } to { transform: translateY(-18px) rotate(2deg); } }
 @keyframes dance-l { from { transform: rotate(130deg); } to { transform: rotate(160deg); } }
 @keyframes dance-r { from { transform: rotate(-160deg); } to { transform: rotate(-130deg); } }
+.walking .doll.painted { animation: painted-walk .3s ease-in-out infinite alternate; }
+@keyframes painted-walk { from { transform: translateY(0) rotate(-2.5deg); } to { transform: translateY(-10px) rotate(2.5deg); } }
+.waving .doll.painted { animation: painted-wave .5s ease-in-out infinite alternate; }
+@keyframes painted-wave { from { transform: rotate(-4deg); } to { transform: rotate(4deg) translateY(-4px); } }
+.talking .doll.painted { animation: painted-talk .35s ease-in-out infinite alternate; }
+@keyframes painted-talk { to { transform: translateY(-3px) rotate(1deg); } }
+.dancing .doll.painted { animation: hop .36s ease-in-out infinite alternate; }
 .wings { animation: flutter .5s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: 50% 40%; }
 @keyframes flutter { to { transform: scaleX(.9); } }
 .person .name {

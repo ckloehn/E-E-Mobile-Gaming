@@ -73,7 +73,7 @@ function addStyled(cat, style, styleName, list, extra = {}) {
 ].forEach(([color, price]) => add('eyeColor', `eyec-${color}`, `${COLORS[color].name} Eyes`, price, { color }));
 
 // Hair
-[['short', 'Short Hair', 0], ['bob', 'Bob', 0], ['long', 'Long Hair', 0], ['ponytail', 'Ponytail', 0],
+[['buzz', 'Buzz Cut', 0], ['short', 'Short Hair', 0], ['bob', 'Bob', 0], ['long', 'Long Hair', 0], ['ponytail', 'Ponytail', 0],
  ['pigtails', 'Pigtails', 0], ['buns', 'Space Buns', 0], ['curly', 'Curly Hair', 0], ['puffs', 'Puffs', 5],
  ['braid', 'Braid', 5], ['spiky', 'Spiky Hair', 5], ['wavy', 'Princess Waves', 10], ['superlong', 'Super Long Hair', 15],
 ].forEach(([style, name, price]) => add('hair', `hair-${style}`, name, price, { style }));
@@ -148,19 +148,31 @@ add('nails', 'nails-none', 'No Nail Polish', 0);
 
 // The castle family. Grown-ups can rename everyone in the grown-ups menu.
 const DEFAULT_CHARACTERS = [
-  { id: 'mommy', name: 'Mommy', kind: 'adult', look: {
+  { id: 'mommy', name: 'Mommy', kind: 'adult', body: 'woman',
+    plook: { hair: 'p-woman-hair-long', hairColor: 'p-hair-blonde', dress: 'p-woman-dress-sundress', top: null, bottom: null,
+      shoes: 'p-woman-shoes-heels', hat: null, extra: null },
+    look: {
     skin: 'skin-peach', eyes: 'eyes-lashes', eyeColor: 'eyec-blue', hair: 'hair-long', hairColor: 'hairc-blonde',
     lips: 'lips-pink', face: 'face-none', top: null, dress: 'dress-sundress-green', bottom: null,
     shoes: 'shoes-sandals-brown', nails: 'nails-pink', hat: 'hat-none', extra: 'extra-none' } },
-  { id: 'daddy', name: 'Daddy', kind: 'broad', look: {
-    skin: 'skin-honey', eyes: 'eyes-round', eyeColor: 'eyec-brown', hair: 'hair-short', hairColor: 'hairc-brown',
+  { id: 'daddy', name: 'Daddy', kind: 'broad', body: 'man',
+    plook: { dress: null, top: 'p-man-top-tee-tint-blue', bottom: 'p-man-bottom-jeans', shoes: 'p-man-shoes-sneakers-tint-white',
+      hat: null, extra: null },
+    look: {
+    skin: 'skin-peach', eyes: 'eyes-round', eyeColor: 'eyec-blue', hair: 'hair-buzz', hairColor: 'hairc-blonde',
     lips: 'lips-none', face: 'face-none', top: 'top-long-red', dress: null, bottom: 'bottom-pants-black',
     shoes: 'shoes-sneakers-white', nails: 'nails-none', hat: 'hat-none', extra: 'extra-glasses' } },
-  { id: 'me', name: 'Me', kind: 'kid', look: {
+  { id: 'me', name: 'Me', kind: 'kid', body: 'kid',
+    plook: { hair: 'p-kid-hair-pigtails', hairColor: 'p-hair-blonde', dress: 'p-kid-dress-party-tint-pink', top: null, bottom: null,
+      shoes: 'p-kid-shoes-flats-tint-pink', hat: 'p-kid-hat-bow-tint-pink', extra: null },
+    look: {
     skin: 'skin-peach', eyes: 'eyes-lashes', eyeColor: 'eyec-blue', hair: 'hair-pigtails', hairColor: 'hairc-blonde',
     lips: 'lips-none', face: 'face-blush', top: null, dress: 'dress-tutu-lightpink', bottom: null,
     shoes: 'shoes-flats-lightpink', nails: 'nails-purple', hat: 'hat-bow', extra: 'extra-none' } },
-  { id: 'sister', name: 'Sister', kind: 'kid', look: {
+  { id: 'sister', name: 'Sister', kind: 'kid', body: 'kid',
+    plook: { hair: 'p-kid-hair-ponytail', hairColor: 'p-hair-blonde', dress: null, top: 'p-kid-top-tee-tint-pink',
+      bottom: 'p-kid-bottom-skirt-tint-purple', shoes: 'p-kid-shoes-sneakers-tint-white', hat: null, extra: null },
+    look: {
     skin: 'skin-peach', eyes: 'eyes-lashes', eyeColor: 'eyec-blue', hair: 'hair-ponytail', hairColor: 'hairc-blonde',
     lips: 'lips-none', face: 'face-blush', top: 'top-tee-pink', dress: null, bottom: 'bottom-skirt-purple',
     shoes: 'shoes-sneakers-white', nails: 'nails-pink', hat: 'hat-none', extra: 'extra-none' } },

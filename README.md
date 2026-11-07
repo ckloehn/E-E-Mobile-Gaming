@@ -46,3 +46,16 @@ Plain HTML, CSS and JavaScript with no build step and no libraries.
 | `sw.js` | Lets the game work offline. Change `VERSION` when you update files. |
 
 To try it on a computer, run `python3 -m http.server` in this folder and open http://localhost:8000.
+
+## Painted dolls
+
+Painted doll pictures go in `art/dolls/woman/`, `art/dolls/man/` and `art/dolls/kid/`
+(see `docs/doll-wardrobe-prompt.md` for the file names). After adding pictures, run:
+
+```
+python3 tools/build_dolls.py
+```
+
+It makes small web copies in `art/dolls-web/` and updates `js/doll-art.js`. A family member switches to
+their painted doll as soon as the base picture for their body is there. Until then they use the drawn doll.
+The wardrobe for painted dolls is listed in `js/painted.js`.

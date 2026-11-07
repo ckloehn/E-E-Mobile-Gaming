@@ -16,14 +16,14 @@ function freshState() {
     lastEgg: '',
     rewarded: {},
     settings: { autoRead: false, music: true },
-    version: 2,
+    version: 3,
   };
 }
 
 // Version 2 made the kids look like Mommy, turned Best Friend into Sister and gave Daddy his own build.
 // Mommy keeps her outfit; everyone keeps the name a grown-up gave them.
 function migrate(saved) {
-  if ((saved.version || 1) >= 2) return saved;
+  if ((saved.version || 1) >= 2) return migrate3(saved);
   const old = id => saved.chars.find(c => c.id === id);
   saved.chars = clone(DEFAULT_CHARACTERS).map(c => {
     const prev = old(c.id);
@@ -32,6 +32,20 @@ function migrate(saved) {
     return c;
   });
   saved.version = 2;
+  return migrate3(saved);
+}
+
+// Version 3 added painted dolls and made the family fair-skinned and blonde with blue eyes.
+function migrate3(saved) {
+  if ((saved.version || 1) >= 3) return saved;
+  for (const c of saved.chars) {
+    const d = DEFAULT_CHARACTERS.find(x => x.id === c.id);
+    if (!d) continue;
+    c.body = d.body;
+    c.plook = c.plook || clone(d.plook);
+    if (c.id === 'daddy') { c.look = clone(d.look); c.kind = d.kind; }
+  }
+  saved.version = 3;
   return saved;
 }
 
@@ -74,6 +88,13 @@ function setCoins(n) {
 }
 
 function wear(look, item) {
+  // Painted dolls wear a plain top and shorts underneath, so a top doesn't need pants added.
+  if (item.painted) {
+    if (item.cat === 'dress') { look.dress = item.id; look.top = null; look.bottom = null; }
+    else if (item.cat === 'top' || item.cat === 'bottom') { look[item.cat] = item.id; look.dress = null; }
+    else look[item.cat] = look[item.cat] === item.id && ['hat', 'extra'].includes(item.cat) ? null : item.id;
+    return;
+  }
   if (item.cat === 'dress') { look.dress = item.id; look.top = null; look.bottom = null; }
   else if (item.cat === 'top') { look.top = item.id; look.dress = null; look.bottom = look.bottom || 'bottom-pants-blue'; }
   else if (item.cat === 'bottom') { look.bottom = item.id; look.dress = null; look.top = look.top || 'top-tee-white'; }
@@ -142,7 +163,7 @@ function renderCastle() {
     <div class="actor ${c.kind}" data-actor="${i}" style="left:${Castle.spot(i)}%">
       <div class="bubble" hidden></div>
       <button class="person" data-action="dress" data-i="${i}" aria-label="Dress up ${escapeHtml(c.name)}">
-        <span class="flip">${Avatar.svg(c.look, c.kind)}</span>
+        <span class="flip">${Doll.full(c)}</span>
         <span class="name">${escapeHtml(c.name)}</span>
       </button>
     </div>`).join('');
@@ -268,24 +289,26 @@ function startDressing(i, mode = 'play') {
 
 function renderModel(pop) {
   const m = $('[data-model]');
-  m.innerHTML = Avatar.svg(ui.char.look, ui.char.kind);
+  m.innerHTML = Doll.full(ui.char);
   if (pop) { m.classList.remove('pop'); void m.offsetWidth; m.classList.add('pop'); }
 }
 
 function renderTabs() {
-  $('[data-tabs]').innerHTML = CATEGORIES.map(c =>
+  const cats = CATEGORIES.filter(c => ITEMS.some(i => i.cat === c.id && Doll.fits(ui.char, i)));
+  if (!cats.some(c => c.id === ui.tab)) ui.tab = cats[0].id;
+  $('[data-tabs]').innerHTML = cats.map(c =>
     `<button class="tab ${c.id === ui.tab ? 'on' : ''}" data-action="tab" data-tab="${c.id}" aria-label="${c.name}">${c.icon}</button>`).join('');
 }
 
 function renderItems() {
-  const look = ui.char.look;
-  const list = ITEMS.filter(i => i.cat === ui.tab);
+  const look = Doll.look(ui.char);
+  const list = ITEMS.filter(i => i.cat === ui.tab && Doll.fits(ui.char, i));
   const box = $('[data-items]');
   box.innerHTML = list.map(item => {
     const locked = !owns(item);
     const on = look[item.cat] === item.id;
     return `<button class="item ${on ? 'on' : ''} ${locked ? 'locked' : ''}" data-action="item" data-id="${item.id}" aria-label="${item.name}">
-      ${Avatar.thumb(lookWith(look, item), item)}
+      ${Doll.thumb(ui.char, lookWith(look, item), item)}
       ${item.id.endsWith('-none') ? '<span class="none-mark">✕</span>' : ''}
       ${locked ? `<span class="lock">🪙${item.price}</span>` : ''}
     </button>`;
@@ -308,7 +331,7 @@ function tapItem(id) {
   if (ui.preview) cancelPreview();
   showItemName(item);
   if (owns(item)) {
-    wear(ui.char.look, item);
+    wear(Doll.look(ui.char), item);
     save();
     Sound.play('pop');
     renderModel(true);
@@ -316,11 +339,11 @@ function tapItem(id) {
     return;
   }
   // Try it on, then offer to buy it
-  ui.preview = { item, before: { ...ui.char.look } };
-  wear(ui.char.look, item);
+  ui.preview = { item, before: { ...Doll.look(ui.char) } };
+  wear(Doll.look(ui.char), item);
   renderModel(true);
   Sound.play('sparkle');
-  $('[data-buy-thumb]').innerHTML = Avatar.thumb(ui.char.look, item);
+  $('[data-buy-thumb]').innerHTML = Doll.thumb(ui.char, Doll.look(ui.char), item);
   $('[data-buy-name]').textContent = item.name;
   $('[data-buy-price]').textContent = item.price;
   const short = item.price - state.coins;
@@ -333,7 +356,7 @@ function tapItem(id) {
 
 function cancelPreview() {
   if (!ui.preview) return;
-  ui.char.look = ui.preview.before;
+  Doll.setLook(ui.char, ui.preview.before);
   ui.preview = null;
   renderModel();
 }
@@ -353,14 +376,14 @@ function buy() {
 
 function done() {
   if (ui.mode === 'show') return runway();
-  const key = JSON.stringify(ui.char.look);
+  const key = JSON.stringify(Doll.look(ui.char));
   const praise = pick(PRAISE);
   if (state.rewarded[ui.char.id] !== key) {
     state.rewarded[ui.char.id] = key;
     setCoins(state.coins + 10);
-    reward(praise, `<div class="reward-model">${Avatar.svg(ui.char.look, ui.char.kind)}</div><p class="got">+10 🪙</p>`, goHome);
+    reward(praise, `<div class="reward-model">${Doll.full(ui.char)}</div><p class="got">+10 🪙</p>`, goHome);
   } else {
-    reward(praise, `<div class="reward-model">${Avatar.svg(ui.char.look, ui.char.kind)}</div>`, goHome);
+    reward(praise, `<div class="reward-model">${Doll.full(ui.char)}</div>`, goHome);
   }
 }
 
@@ -397,17 +420,18 @@ function crackEgg() {
   if (ui.eggTaps < 3) return;
 
   state.lastEgg = today();
-  const locked = ITEMS.filter(i => !owns(i) && i.price <= 15);
+  const locked = ITEMS.filter(i => !owns(i) && i.price <= 15 && state.chars.some(c => Doll.fits(c, i)));
   const prize = locked.length ? pick(locked) : null;
   if (prize) state.owned.push(prize.id);
   setCoins(state.coins + 25);
   save();
 
   egg.hidden = true;
-  const look = prize ? lookWith(state.chars[2].look, prize) : state.chars[2].look;
+  const who = (prize && state.chars.find(c => Doll.fits(c, prize))) || state.chars[0];
+  const look = prize ? lookWith(Doll.look(who), prize) : Doll.look(who);
   $('[data-egg-prize]').innerHTML = `
     <p class="got">+25 🪙</p>
-    ${prize ? `<div class="prize-thumb">${Avatar.thumb(look, prize)}</div><p class="prize-name"><span class="say">${prize.name}</span></p>` : ''}`;
+    ${prize ? `<div class="prize-thumb">${Doll.thumb(who, look, prize)}</div><p class="prize-name"><span class="say">${prize.name}</span></p>` : ''}`;
   $('[data-egg-prize]').hidden = false;
   $('[data-egg-close]').hidden = false;
   $('[data-egg-title]').textContent = 'Surprise!';
@@ -423,7 +447,7 @@ function startShow() {
   $('[data-theme-big]').innerHTML = `<span class="theme-icon" aria-hidden="true">${ui.theme.icon}</span><span class="say">${ui.theme.name}</span>`;
   $('[data-pick]').innerHTML = state.chars.map((c, i) => `
     <button class="person mini ${c.kind}" data-action="model" data-i="${i}">
-      ${Avatar.svg(c.look, c.kind)}<span class="name">${escapeHtml(c.name)}</span>
+      ${Doll.full(c)}<span class="name">${escapeHtml(c.name)}</span>
     </button>`).join('');
   decorate($('#screen-show'));
   show('show');
@@ -437,7 +461,7 @@ const JUDGES = [
 ];
 
 function runway() {
-  const look = ui.char.look;
+  const look = Doll.look(ui.char);
   const o = Avatar.outfit(look);
   const fancy = Object.values(o).filter(i => i && i.price > 0).length;
   const stars = [
@@ -447,7 +471,7 @@ function runway() {
   ];
   const total = stars.reduce((a, b) => a + b, 0);
 
-  $('[data-runway-model]').innerHTML = Avatar.svg(look, ui.char.kind);
+  $('[data-runway-model]').innerHTML = Doll.full(ui.char, look);
   $('[data-runway-model]').className = 'runway-model walk walking';
   setTimeout(() => $('[data-runway-model]').classList.remove('walking'), 2400);
   $('[data-judges]').innerHTML = JUDGES.map(j => `
@@ -480,7 +504,7 @@ function openGrownups() {
   $('#set-autoread').checked = state.settings.autoRead;
   $('#set-music').checked = state.settings.music;
   $('[data-names]').innerHTML = state.chars.map((c, i) =>
-    `<label class="row"><span class="mini-face">${Avatar.head(c.look, c.kind)}</span><input type="text" id="name-${c.id}" data-name="${i}" value="${escapeHtml(c.name)}" maxlength="16"></label>`).join('');
+    `<label class="row"><span class="mini-face">${Doll.head(c)}</span><input type="text" id="name-${c.id}" data-name="${i}" value="${escapeHtml(c.name)}" maxlength="16"></label>`).join('');
   $('[data-reset-confirm]').hidden = true;
   openSheet('grownups');
 }
