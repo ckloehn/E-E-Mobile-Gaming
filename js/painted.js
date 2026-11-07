@@ -117,14 +117,16 @@ const Painted = (() => {
     if (!images[key]) { images[key] = new Image(); images[key].src = src(key); }
     return images[key];
   }
-  function paint(ctx, w, h, color) {
+  // Gold and rainbow stretch across the painted part of the piece only, so small pieces get every color.
+  function paint(ctx, box, color) {
+    const [x0, y0, x1, y1] = box;
     if (color === 'gold') {
-      const g = ctx.createLinearGradient(0, 0, w, h);
+      const g = ctx.createLinearGradient(x0, y0, x1, y1);
       g.addColorStop(0, '#FFE98A'); g.addColorStop(0.5, '#F2B320'); g.addColorStop(1, '#FFE07A');
       return g;
     }
     if (color === 'rainbow') {
-      const g = ctx.createLinearGradient(0, 0, w, h * 0.6);
+      const g = ctx.createLinearGradient(x0, y0, x1, y0 + (y1 - y0) * 0.5);
       ['#FF5E7E', '#FF9F43', '#FFD93D', '#4CD07D', '#4D96FF', '#A66CFF'].forEach((c, i) => g.addColorStop(i / 5, c));
       return g;
     }
@@ -146,7 +148,9 @@ const Painted = (() => {
           const x = c.getContext('2d');
           x.drawImage(im, 0, 0);
           x.globalCompositeOperation = mode;
-          x.fillStyle = paint(x, c.width, c.height, color);
+          const k = c.width / 1024;
+          const box = (DOLL_ART[key] || [0, 0, 1024, 2560]).map(v => v * k);
+          x.fillStyle = paint(x, box, color);
           x.fillRect(0, 0, c.width, c.height);
           x.globalCompositeOperation = 'destination-in';
           x.drawImage(im, 0, 0);
