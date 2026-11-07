@@ -28,6 +28,26 @@ const Avatar = (() => {
     return `rgb(${ch(16)},${ch(8)},${ch(0)})`;
   }
   const edge = fill => darken(fill, 0.62);
+  const isHex = c => /^#[0-9a-f]{6}$/i.test(c);
+
+  // Glossy gradients, made once per color and shared by id. Collected while drawing, then added as <defs>.
+  let DEFS = new Map();
+  function cyl(hex) {
+    if (!isHex(hex)) return hex;
+    const id = 'cg' + hex.slice(1);
+    if (!DEFS.has(id)) DEFS.set(id, `<linearGradient id="${id}" x1="0" y1="0" x2="1" y2=".2">` +
+      `<stop offset="0" stop-color="${lighten(hex, 0.34)}"/><stop offset=".3" stop-color="${hex}"/>` +
+      `<stop offset=".68" stop-color="${hex}"/><stop offset="1" stop-color="${darken(hex, 0.78)}"/></linearGradient>`);
+    return `url(#${id})`;
+  }
+  function hairFill(hex) {
+    if (!isHex(hex)) return hex;
+    const id = 'hg' + hex.slice(1);
+    if (!DEFS.has(id)) DEFS.set(id, `<linearGradient id="${id}" x1="0" y1="0" x2=".15" y2="1">` +
+      `<stop offset="0" stop-color="${lighten(hex, 0.3)}"/><stop offset=".38" stop-color="${hex}"/>` +
+      `<stop offset="1" stop-color="${darken(hex, 0.7)}"/></linearGradient>`);
+    return `url(#${id})`;
+  }
 
   // ---------- Shape helpers ----------
   const f1 = n => n.toFixed(1);
@@ -35,8 +55,10 @@ const Avatar = (() => {
     `<path d="${d}" fill="${fill}"${stroke ? ` stroke="${stroke}" stroke-width="${w}" stroke-linejoin="round"` : ''}/>`;
   const Line = (d, color, w = 1.6) => `<path d="${d}" fill="none" stroke="${color}" stroke-width="${w}" stroke-linecap="round"/>`;
   // A filled shape with soft light on the left and shadow on the right, plus an optional pattern.
-  const solid = (d, fill, pattern, stroke) =>
-    P(d, fill, stroke || edge(fill)) + (pattern ? P(d, PATTERN[pattern], null) : '') + P(d, VOL, null);
+  const solid = (d, fill, pattern, stroke) => {
+    const g = cyl(fill);
+    return P(d, g, stroke || edge(fill)) + (pattern ? P(d, PATTERN[pattern], null) : '') + (g === fill ? P(d, VOL, null) : '');
+  };
   const mirror = svg => `<g transform="translate(300 0) scale(-1 1)">${svg}</g>`;
   const both = svg => svg + mirror(svg);
 
@@ -90,7 +112,7 @@ const Avatar = (() => {
     legW: [[0, 42], [0.42, 23], [0.62, 24], [1, 13]],
     torso: 'M140 130 L140 168 Q122 174 106 180 Q96 185 96 197 L98 214 Q104 252 124 296 Q118 330 112 352 L188 352 Q182 330 176 296 Q196 252 202 214 L204 197 Q204 185 194 180 Q178 174 160 168 L160 130 Z',
     hip: 'M120 292 L180 292 Q186 322 190 354 L110 354 Q114 322 120 292 Z',
-    face: 'M108 90 C106 40 194 40 192 90 C192 123 174 147 150 149 C126 147 108 123 108 90 Z',
+    face: 'M150 152 C136 152 120 141 113 122 C108 108 107 92 109 76 C113 52 131 42 150 42 C169 42 187 52 191 76 C193 92 192 108 187 122 C180 141 164 152 150 152 Z',
     tops: {
       base: 'M104 181 Q124 172 140 170 Q150 190 160 170 Q176 172 196 181 Q204 186 204 198 L202 214 Q196 252 178 300 L180 330 L120 330 L122 300 Q104 252 98 214 L96 198 Q96 186 104 181 Z',
       tank: 'M108 186 L118 178 L126 178 Q150 210 174 178 L182 178 L192 186 Q200 214 202 222 Q196 254 178 300 L180 330 L120 330 L122 300 Q104 254 98 222 Q100 214 108 186 Z',
@@ -115,7 +137,7 @@ const Avatar = (() => {
   };
   GUY.tops.crop = GUY.tops.base;
 
-  const KID_FACE = 'M106 92 C104 42 196 42 194 92 C194 128 178 150 150 151 C122 150 106 128 106 92 Z';
+  const KID_FACE = 'M150 153 C130 153 110 138 108 112 C106 92 107 78 110 68 C116 50 132 42 150 42 C168 42 184 50 190 68 C193 78 194 92 192 112 C190 138 170 153 150 153 Z';
   const HAND = 'M78 390 Q73 408 77 423 Q84 433 91 423 Q95 408 90 390 Z';
   const THUMB = 'M89 398 Q97 404 95 414 Q91 416 88 410 Z';
   const FOOT = 'M130 684 Q127 702 131 720 Q138 730 145 720 Q149 702 146 684 Z';
@@ -160,6 +182,16 @@ const Avatar = (() => {
     curly: { curls: true, front: BANGS, strands: [] },
     braid: { back: CAP, front: BANGS, strands: ['M122 56 Q150 42 178 54'], braid: true },
   };
+  // Long styles: glossy pieces that frame the face and fall over the shoulders.
+  const FRAME = 'M150 34 C178 34 200 50 204 84 C208 124 206 176 214 236 C216 252 206 262 198 254 C196 214 196 160 194 122 C192 92 184 68 158 56 C146 62 126 64 110 74 C107 120 108 176 106 226 C104 248 92 254 88 240 C94 192 92 126 96 88 C100 54 122 34 150 34 Z';
+  for (const k of ['long', 'superlong', 'wavy']) {
+    HAIR[k].backStrands = HAIR[k].strands.slice(0, -1);
+    HAIR[k].strands = ['M150 38 Q154 48 158 56', 'M158 56 Q186 66 199 106', 'M200 110 Q202 170 208 242', 'M100 106 Q96 170 94 234', 'M196 132 Q198 190 203 250', 'M106 122 Q104 180 100 238', 'M140 60 Q124 64 112 74'];
+    HAIR[k].lights = ['M200 112 Q202 170 206 232', 'M102 116 Q100 170 98 228', 'M168 62 Q188 74 197 104'];
+    HAIR[k].backLights = ['M92 150 Q88 230 92 310', 'M208 150 Q212 230 208 310'];
+    HAIR[k].front = FRAME;
+  }
+  HAIR.long.back = 'M98 76 C94 40 206 40 202 76 C216 124 224 220 220 330 Q208 342 196 334 Q182 346 168 336 Q150 348 132 336 Q118 346 104 334 Q92 342 80 330 C76 220 84 124 98 76 Z';
 
   function hairBack(style, hc) {
     const h = HAIR[style] || HAIR.short;
@@ -168,16 +200,17 @@ const Avatar = (() => {
     if (h.curls) {
       for (let a = 160; a <= 380; a += 18) {
         const r = (a * Math.PI) / 180;
-        s += `<circle cx="${f1(150 + 62 * Math.cos(r))}" cy="${f1(110 + 74 * Math.sin(r))}" r="22" fill="${hc}" stroke="${ink}" stroke-width="1.4"/>` +
+        s += `<circle cx="${f1(150 + 62 * Math.cos(r))}" cy="${f1(110 + 74 * Math.sin(r))}" r="22" fill="${hairFill(hc)}" stroke="${ink}" stroke-width="1.4"/>` +
           `<circle cx="${f1(150 + 62 * Math.cos(r))}" cy="${f1(110 + 74 * Math.sin(r))}" r="22" fill="url(#g-hair)"/>`;
       }
       return s;
     }
     if (h.extra) for (const [x, y, r] of h.extra) {
-      s += `<circle cx="${x}" cy="${y}" r="${r}" fill="${hc}" stroke="${ink}" stroke-width="1.6"/><circle cx="${x}" cy="${y}" r="${r}" fill="url(#g-hair)"/>` +
+      s += `<circle cx="${x}" cy="${y}" r="${r}" fill="${hairFill(hc)}" stroke="${ink}" stroke-width="1.6"/><circle cx="${x}" cy="${y}" r="${r}" fill="url(#g-hair)"/>` +
         Line(`M${x - r * 0.6} ${y - r * 0.3} Q${x} ${y - r * 0.8} ${x + r * 0.5} ${y - r * 0.4}`, SHINE, 3);
     }
-    return s + P(h.back, hc, ink) + P(h.back, 'url(#g-hair)', null);
+    return s + P(h.back, hairFill(hc), ink) + P(h.back, 'url(#g-hair)', null) + (h.backStrands || []).map(d => Line(d, ink, 1.1)).join('') +
+      (h.backLights || []).map(d => Line(d, lighten(hc, 0.5), 1.8)).join('');
   }
 
   function hairFront(style, hc) {
@@ -188,114 +221,115 @@ const Avatar = (() => {
     if (h.braid) {
       for (let i = 0; i < 10; i++) {
         const x = 182 + i * 2.6, y = 128 + i * 21;
-        s += `<ellipse cx="${f1(x)}" cy="${y}" rx="13" ry="13" fill="${hc}" stroke="${ink}" stroke-width="1.4"/>` +
+        s += `<ellipse cx="${f1(x)}" cy="${y}" rx="13" ry="13" fill="${hairFill(hc)}" stroke="${ink}" stroke-width="1.4"/>` +
           `<ellipse cx="${f1(x)}" cy="${y}" rx="13" ry="13" fill="url(#g-hair)"/>` +
           Line(`M${f1(x - 10)} ${y + 2} Q${f1(x)} ${y + 10} ${f1(x + 10)} ${y + 2}`, ink, 1.2);
       }
       s += `<circle cx="207" cy="342" r="6" fill="#FF6FB5" stroke="${INK}" stroke-width="1"/>`;
     }
-    s += P(h.front, hc, ink) + P(h.front, 'url(#g-hair)', null);
+    s += P(h.front, hairFill(hc), ink) + P(h.front, 'url(#g-hair)', null);
     if (h.curls) {
       for (const [x, y] of [[112, 84], [126, 62], [148, 54], [170, 58], [188, 76]]) {
-        s += `<circle cx="${x}" cy="${y}" r="15" fill="${hc}" stroke="${ink}" stroke-width="1.4"/><circle cx="${x}" cy="${y}" r="15" fill="url(#g-hair)"/>` +
+        s += `<circle cx="${x}" cy="${y}" r="15" fill="${hairFill(hc)}" stroke="${ink}" stroke-width="1.4"/><circle cx="${x}" cy="${y}" r="15" fill="url(#g-hair)"/>` +
           Line(`M${x - 8} ${y - 4} Q${x - 2} ${y - 11} ${x + 6} ${y - 8}`, SHINE, 2.4);
       }
     }
     for (const d of h.strands) s += Line(d, ink, 1.2);
-    s += Line('M124 62 Q144 48 168 50', light, 5) + Line('M126 60 Q144 50 162 51', SHINE, 2.4) + Line('M116 76 Q124 66 134 62', light, 2.5);
+    for (const d of h.lights || []) s += Line(d, light, 2);
+    s += Line('M122 60 Q146 42 176 52', light, 6) + Line('M126 57 Q146 45 168 50', SHINE, 2.6) + Line('M114 76 Q122 64 134 58', light, 2.5);
     if (h.tie) for (const [x, y, r] of h.tie) s += `<circle cx="${x}" cy="${y}" r="${r}" fill="#FF6FB5" stroke="${INK}" stroke-width="1"/><circle cx="${x - 2}" cy="${y - 2}" r="${r * 0.35}" fill="${SHINE}"/>`;
     return s;
   }
 
   // ---------- Face ----------
+  // Each eye is designed as the left eye and mirrored for the right one.
   let clipId = 0;
-  function eyes(style, ec, skin, male, young) {
-    const one = (x, right) => {
-      const y = 93, s = right ? 1 : -1;
-      const almond = male
-        ? `M${x - 12} ${y} Q${x - 1} ${y - 8} ${x + 12} ${y - 1} Q${x + 1} ${y + 5} ${x - 12} ${y} Z`
-        : `M${x - 12} ${y} Q${x - 2} ${y - 10} ${x + 12} ${y - 2} Q${x + 2} ${y + 7} ${x - 12} ${y} Z`;
-      const lashLine = Line(male ? `M${x - 12} ${y} Q${x - 1} ${y - 9} ${x + 12} ${y - 1}` : `M${x - 13} ${y + 0.5} Q${x - 2} ${y - 11} ${x + 13} ${y - 2}`,
-        '#2A1F2D', male ? 1.8 : 2.8);
-      const flick = male ? '' : Line(right ? `M${x + 12} ${y - 2} L${x + 17} ${y - 6}` : `M${x - 12} ${y} L${x - 17} ${y - 5}`, '#2A1F2D', 2);
-      const crease = Line(`M${x - 10} ${y - 9} Q${x} ${y - 15} ${x + 11} ${y - 9}`, darken(skin, 0.75), 1.1);
-      const iris = (r, shape) => {
-        const cy = y - 1;
-        if (shape === 'star') return star(x, cy, r + 2, ec, '#2A1F2D');
-        if (shape === 'heart') return heart(x, cy, r - 0.5, ec, '#2A1F2D');
-        return `<circle cx="${x}" cy="${cy}" r="${r}" fill="${ec}"/><circle cx="${x}" cy="${cy}" r="${r}" fill="url(#g-iris)"/>` +
-          `<circle cx="${x}" cy="${cy}" r="${r}" fill="none" stroke="rgba(30,15,40,.5)" stroke-width="1"/>` +
-          `<circle cx="${x}" cy="${cy}" r="${r * 0.42}" fill="#1E1522"/>`;
-      };
-      const shine = big => `<circle cx="${x - 2.5}" cy="${y - 4}" r="${big ? 2.6 : 2}" fill="#fff"/>` + `<circle cx="${x + 2.6}" cy="${y + 1.6}" r="${big ? 1.4 : 0.9}" fill="#fff" opacity=".9"/>`;
-      const open = (r, shape, big) => {
-        const id = `eye${++clipId}`;
-        return P(almond, '#fff', null) + `<clipPath id="${id}"><path d="${almond}"/></clipPath>` +
-          `<g clip-path="url(#${id})">${iris(r, shape)}<path d="M${x - 14} ${y - 12} L${x + 14} ${y - 12} L${x + 14} ${y - 5} Q${x} ${y - 9} ${x - 14} ${y - 4} Z" fill="rgba(60,20,60,.18)"/></g>` +
-          shine(big) + crease + lashLine;
-      };
-      const lashes = n => (male ? [] : [0, 1, 2].slice(0, n)).map(k => {
-        const bx = right ? x + 6 + k * 3.5 : x - 6 - k * 3.5, by = y - 6 + k * 2;
-        return Line(`M${bx} ${by} l${s * 4} ${-6 + k}`, '#2A1F2D', 1.6);
-      }).join('');
-      let eye;
-      switch (style) {
-        case 'happy': eye = Line(`M${x - 12} ${y + 2} Q${x} ${y - 9} ${x + 12} ${y + 2}`, '#2A1F2D', 2.6) + lashes(2); break;
-        case 'wink':
-          eye = right ? Line(`M${x - 12} ${y - 1} Q${x} ${y + 6} ${x + 12} ${y - 1}`, '#2A1F2D', 2.6) + lashes(2) : open(6.8, null, false) + flick + lashes(3);
-          break;
-        case 'sleepy':
-          eye = open(6.8, null, false) + P(`M${x - 14} ${y - 14} L${x + 14} ${y - 14} L${x + 14} ${y - 2} Q${x} ${y + 1} ${x - 14} ${y} Z`, skin, null) +
-            Line(`M${x - 13} ${y} Q${x} ${y + 1} ${x + 13} ${y - 2}`, '#2A1F2D', 2.4);
-          break;
-        case 'sparkly': eye = open(8, null, true) + flick + lashes(3); break;
-        case 'star': eye = open(6.8, 'star', false) + flick + lashes(2); break;
-        case 'heart': eye = open(6.8, 'heart', false) + flick + lashes(2); break;
-        case 'lashes':
-          eye = (male ? '' : Line(`M${x - 12} ${y - 6} Q${x} ${y - 16} ${x + 12} ${y - 8}`, 'rgba(190,120,200,.35)', 6)) + open(6.8, null, false) + flick + lashes(3);
-          break;
-        default: eye = open(male ? 6.2 : 6.8, null, false) + lashes(1);
-      }
-      // Big doll eyes for the girls
-      const big = young ? 1.3 : 1.14;
-      return male ? eye : `<g transform="translate(${x} ${y + (young ? 2 : 0)}) scale(${big}) translate(${-x} ${-y})">${eye}</g>`;
-    };
-    const brow = darken(skin, male ? 0.38 : 0.45);
-    const brows = male
-      ? Line('M118 79 Q131 73 144 77', brow, 4.2) + Line('M156 77 Q169 73 182 79', brow, 4.2)
-      : Line('M119 77 Q131 70 143 75', brow, 2.2) + Line('M157 75 Q169 70 181 77', brow, 2.2);
-    return one(132, false) + one(168, true) + brows;
+  const LID = '#2A1A2E';
+  const LASHES = [[118, 90.5, 110.5, 85], [120.5, 87.5, 113.5, 80.5], [123.5, 85.5, 118, 77.5], [127, 84, 123.5, 76], [131, 83.2, 129.5, 75.5]];
+
+  function oneEye(style, ec, skin, male, side) {
+    const closed = style === 'happy' || (style === 'wink' && side === 'r');
+    const white = male ? 'M118 95 C122 87 136 85 144 96 C137 101 124 101 118 95 Z' : 'M116 94 C121 84 136 80 144 96 C138 104 124 104 116 94 Z';
+    const lid = male ? 'M117 95 C122 86 136 84 145 96' : 'M115 94.5 C120 83 136 79 145 96';
+    const lashes = n => male ? '' : LASHES.slice(0, n).map(([a, b, c, d]) => Line(`M${a} ${b} Q${(a + c) / 2 - 1.5} ${(b + d) / 2} ${c} ${d}`, LID, 1.7)).join('');
+    let s = '';
+    if (!male) s += P('M114 93 C118 76 138 71 147 95 C138 80 121 82 114 93 Z', style === 'lashes' ? 'rgba(200,110,215,.5)' : 'rgba(230,130,185,.34)', null);
+    s += Line(male ? 'M119 87 C124 80 136 79 144 89' : 'M117 86 C123 76 137 74 145 88', darken(skin, 0.78), 1.1);
+    if (closed) {
+      s += Line(style === 'wink' ? 'M117 95 Q131 102 145 95' : 'M117 98 Q131 87 145 98', LID, male ? 2.2 : 2.8);
+      return s + lashes(3);
+    }
+    const id = `eye${++clipId}`;
+    const cx = 131, cy = 94;
+    const r = male ? 6.6 : style === 'sparkly' ? 9.6 : 8.6;
+    let iris;
+    if (style === 'star') iris = star(cx, cy, r + 2.5, ec, LID);
+    else if (style === 'heart') iris = heart(cx, cy, r, ec, LID);
+    else {
+      iris = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${ec}"/><circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#g-iris)"/>` +
+        `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(30,10,40,.55)" stroke-width="1.1"/>` +
+        `<circle cx="${cx}" cy="${cy}" r="${f1(r * 0.44)}" fill="#160C1A"/>`;
+    }
+    s += P(white, '#fff', null) + `<clipPath id="${id}"><path d="${white}"/></clipPath>` +
+      `<g clip-path="url(#${id})">${iris}<path d="M110 70 L152 70 L152 93 C138 82 122 84 110 95 Z" fill="rgba(40,10,40,.24)"/></g>`;
+    if (style === 'sleepy') s += P('M113 74 L149 74 L149 97 Q131 88 113 95 Z', skin, null) + Line('M115 95 Q131 88 147 97', LID, 2.6);
+    s += `<circle cx="${cx - 3}" cy="${cy - 4}" r="${style === 'sparkly' ? 3.3 : 2.6}" fill="#fff"/><circle cx="${cx + 3.2}" cy="${cy + 3}" r="1.3" fill="#fff" opacity=".9"/>`;
+    if (style === 'sparkly') s += star(cx + 4, cy - 5, 2.6, '#fff');
+    if (style !== 'sleepy') s += Line(lid, LID, male ? 1.9 : 3.3);
+    if (!male) {
+      s += P('M117.5 92 L108 86.5 L116.5 95.5 Z', LID, null);
+      s += lashes(style === 'lashes' || style === 'sparkly' ? 5 : 4);
+      s += Line('M119 97.5 C125 103.5 137 103.5 143 98.5', 'rgba(70,30,45,.5)', 1);
+    }
+    return s;
+  }
+
+  function eyes(style, ec, skin, male, young, hc) {
+    let s = oneEye(style, ec, skin, male, 'l') + mirror(oneEye(style, ec, skin, male, 'r'));
+    if (young) s = `<g transform="translate(150 98) scale(1.1) translate(-150 -96)">${s}</g>`;
+    const brow = /^#[0-9a-f]{6}$/i.test(hc) ? darken(hc, male ? 0.55 : 0.6) : darken(skin, 0.45);
+    const b = male ? 'M114 81 C120 73 134 70 147 75 L147 79.5 C134 75 121 77 114 85 Z' : 'M113 80 C120 69 135 65 147 71 C135 68.5 122 71 113 80 Z';
+    return s + both(P(b, brow, null));
+  }
+
+  function nose(skin, male, young) {
+    const line = darken(skin, 0.8), nostril = darken(skin, 0.68);
+    if (young) return both(Line('M145.5 117 Q147.5 119 149.5 118.5', nostril, 1.3)) + `<ellipse cx="151" cy="112" rx="1.6" ry="3" fill="#fff" opacity=".4"/>`;
+    return Line(male ? 'M150 98 Q145 111 148 117' : 'M149.5 104 Q147 113 148.5 116.5', line, male ? 1.6 : 1.3) +
+      both(Line('M144.5 118 Q146.5 120.5 149 119.5', nostril, 1.3)) + `<ellipse cx="151.5" cy="108" rx="1.7" ry="4.5" fill="#fff" opacity=".42"/>`;
   }
 
   function facePaint(style) {
     switch (style) {
-      case 'blush': return `<ellipse cx="121" cy="113" rx="11" ry="6.5" fill="#FF7FA8" opacity=".45"/><ellipse cx="179" cy="113" rx="11" ry="6.5" fill="#FF7FA8" opacity=".45"/>`;
-      case 'freckles': return [[118, 108], [124, 112], [116, 114], [182, 108], [176, 112], [184, 114], [146, 104], [154, 104]]
+      case 'blush': return both(`<ellipse cx="121" cy="114" rx="13" ry="8" fill="url(#g-blush)"/>`);
+      case 'freckles': return [[118, 110], [124, 114], [116, 116], [182, 110], [176, 114], [184, 116], [146, 108], [154, 108]]
         .map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.4" fill="#A0663E"/>`).join('');
-      case 'stars': return star(120, 114, 6, '#FFD93D', INK) + star(180, 114, 6, '#FFD93D', INK) + star(190, 102, 3.5, '#FF6FB5');
-      case 'hearts': return heart(120, 114, 5.5, '#FF4F8B', INK) + heart(180, 114, 5.5, '#FF4F8B', INK);
-      case 'eyeshadow': return Line('M120 86 Q132 74 145 85', 'url(#g-rainbow)', 7) + Line('M155 85 Q168 74 180 86', 'url(#g-rainbow)', 7);
-      case 'glitter': return [[116, 106], [124, 116], [112, 118], [184, 106], [176, 116], [188, 118], [150, 66], [142, 62], [158, 62]]
+      case 'stars': return star(120, 116, 6, '#FFD93D', INK) + star(180, 116, 6, '#FFD93D', INK) + star(190, 104, 3.5, '#FF6FB5');
+      case 'hearts': return heart(120, 116, 5.5, '#FF4F8B', INK) + heart(180, 116, 5.5, '#FF4F8B', INK);
+      case 'eyeshadow': return both(P('M114 91 Q128 66 148 93 Q129 78 114 91 Z', 'url(#g-rainbow)', null));
+      case 'glitter': return [[116, 108], [124, 118], [112, 120], [184, 108], [176, 118], [188, 120], [150, 64], [142, 60], [158, 60]]
         .map(([x, y], i) => star(x, y, i % 3 ? 2.5 : 3.6, i % 2 ? '#FFE680' : '#FFFFFF')).join('');
       case 'whiskers':
-        return `<ellipse cx="150" cy="111" rx="4" ry="3" fill="#FF8FB1"/>` +
-          [[-1, 112], [-1, 118], [1, 112], [1, 118]].map(([s, y]) => Line(`M${150 + s * 16} ${y} L${150 + s * 38} ${y + (y - 115) * 1.6}`, '#4A2E3A', 1.4)).join('');
+        return `<ellipse cx="150" cy="116" rx="4" ry="3" fill="#FF8FB1"/>` +
+          [[-1, 118], [-1, 124], [1, 118], [1, 124]].map(([s, y]) => Line(`M${150 + s * 16} ${y} L${150 + s * 38} ${y + (y - 121) * 1.6}`, '#4A2E3A', 1.4)).join('');
       default: return '';
     }
   }
 
-  function mouth(lips, skin, male) {
+  // A big doll smile with a peek of teeth. Daddy gets a closed smile unless he wears lipstick.
+  function mouth(lips, skin, male, young) {
     const painted = lips && lips.color;
-    if (male && !painted) {
-      return Line('M140 124 Q150 130 160 124', darken(skin, 0.5), 2) + Line('M144 130 Q150 132 156 130', darken(skin, 0.82), 1.6);
-    }
-    const upper = 'M139 122 Q144 118 150 121 Q156 118 161 122 Q155 125 150 125 Q145 125 139 122 Z';
-    const lower = 'M140 123 Q150 134 160 123 Q150 127 140 123 Z';
-    const c = painted ? fillOf(lips.color) : '#D9787A';
-    return `<g${painted ? '' : ' opacity=".75"'}>` + P(upper, c, edge(c), 1) + P(lower, c, edge(c), 1) + P(lower, VOL, null) + '</g>' +
+    if (male && !painted) return Line('M139 128 Q150 135 161 128', darken(skin, 0.5), 2.2) + Line('M144 135 Q150 137 156 135', darken(skin, 0.85), 1.6);
+    const c = painted ? fillOf(lips.color) : young ? '#F08CA8' : '#E46F8E';
+    const ink = /^#/.test(c) ? darken(c, 0.7) : INK;
+    const lower = 'M138 131 Q150 136 162 131 Q158 140 150 140.5 Q142 140 138 131 Z';
+    const upper = 'M136 128 Q141 122.5 146.5 124 Q150 125.3 153.5 124 Q159 122.5 164 128 Q150 130 136 128 Z';
+    return P('M138 128 Q150 131 162 128 Q157 135 150 135.5 Q143 135 138 128 Z', '#7A2440', null) +
+      P('M140 128.8 Q150 131.3 160 128.8 L158.8 131.3 Q150 133.2 141.2 131.3 Z', '#fff', null) +
+      P(lower, c, ink, 1) + P(upper, c, ink, 1) +
       (painted && ['gold', 'rainbow'].includes(lips.color) ? P(lower, PATTERN.glitter, null) : '') +
-      Line('M139 122 Q150 126 161 122', 'rgba(90,20,40,.55)', 1.2) +
-      `<ellipse cx="146" cy="128" rx="3.4" ry="1.5" fill="#fff" opacity=".7"/><ellipse cx="146" cy="120.5" rx="2" ry=".9" fill="#fff" opacity=".5"/>`;
+      `<ellipse cx="146" cy="137.6" rx="3.6" ry="1.4" fill="#fff" opacity=".75"/><ellipse cx="154.5" cy="138" rx="1.4" ry=".8" fill="#fff" opacity=".6"/>` +
+      `<ellipse cx="144" cy="125" rx="2" ry=".8" fill="#fff" opacity=".5"/>` + both(Line('M136.5 127.6 Q134.6 126.6 134.8 124.9', darken(skin, 0.7), 1.1));
   }
 
   // ---------- Clothes ----------
@@ -633,6 +667,12 @@ const Avatar = (() => {
 
   // `only` limits drawing to some layers, so the picker can show one item by itself.
   function draw(look, kind = 'adult', only = null) {
+    DEFS = new Map();
+    const out = drawParts(look, kind, only);
+    return `<defs>${[...DEFS.values()].join('')}</defs>` + out;
+  }
+
+  function drawParts(look, kind, only) {
     const o = outfit(look);
     const B = kind === 'broad' || kind === 'flat-broad' ? GUY : DOLL;
     const skin = o.skin ? o.skin.hex : '#F8C9A2';
@@ -650,7 +690,7 @@ const Avatar = (() => {
     const leg = (() => {
       let s = '';
       if (bodyOn) {
-        s += P(tube(B.leg, B.legW, 0, 0.995), skin, skinInk) + P(tube(B.leg, B.legW, 0, 0.995), VOL, null) + Line('M138 500 Q134 520 138 534', SHADE, 2);
+        s += P(tube(B.leg, B.legW, 0, 0.995), cyl(skin), skinInk) + Line('M138 500 Q134 520 138 534', SHADE, 2);
         if (!o.shoes || !CLOSED_SHOES.includes(o.shoes.style)) s += P(FOOT, skin, skinInk);
       }
       if (show('bottom') && !o.dress && o.bottom) s += bottomLeg(o.bottom, B);
@@ -661,10 +701,10 @@ const Avatar = (() => {
     // One arm with its sleeve, hand, nails and anything it holds.
     const arm = side => {
       let s = '';
-      if (bodyOn) s += P(tube(B.arm, B.armW, 0, 0.995), skin, skinInk) + P(tube(B.arm, B.armW, 0, 0.995), VOL, null);
+      if (bodyOn) s += P(tube(B.arm, B.armW, 0, 0.995), cyl(skin), skinInk);
       if (wearsDress) s += dressSleeve(o.dress);
       else if (show('top') && o.top && !o.dress) s += topSleeve(o.top, B);
-      if (bodyOn || show('hands')) s += P(HAND, skin, skinInk) + P(HAND, VOL, null) + P(THUMB, skin, skinInk);
+      if (bodyOn || show('hands')) s += P(HAND, cyl(skin), skinInk) + P(THUMB, skin, skinInk);
       if (show('nails')) s += nails(o.nails);
       if (show('extra')) s += handItem(o.extra, side);
       return s;
@@ -675,7 +715,7 @@ const Avatar = (() => {
     if (show('extra')) body += extraBack(o.extra);
     body += `<g class="leg leg-l">${leg}</g><g class="leg leg-r">${mirror(leg)}</g>`;
     if (bodyOn) {
-      body += P(B.torso, skin, skinInk) + P(B.torso, VOL, null) + P('M140 140 Q150 152 160 140 L160 156 Q150 162 140 156 Z', SHADE, null);
+      body += P(B.torso, cyl(skin), skinInk) + P('M140 140 Q150 152 160 140 L160 156 Q150 162 140 156 Z', SHADE, null);
       body += Line('M124 186 Q134 190 142 186', SHADE, 1.6) + Line('M176 186 Q166 190 158 186', SHADE, 1.6);
     }
     if (show('bottom') && !o.dress && o.bottom) body += bottomHip(o.bottom, B);
@@ -689,16 +729,14 @@ const Avatar = (() => {
     if (headOn) {
       head += both(`<ellipse cx="108" cy="97" rx="6" ry="10" fill="${skin}" stroke="${skinInk}" stroke-width="1.4"/>`);
       const faceD = kind === 'kid' ? KID_FACE : B.face;
-      head += P(faceD, skin, skinInk) + P(faceD, 'url(#g-face)', null) + P('M112 112 Q120 136 150 146 Q130 140 116 120 Z', SHADE, null);
-      if (B.male) head += Line('M124 136 Q150 152 176 136', SHADE, 2);
+      head += P(faceD, skin, skinInk) + P(faceD, 'url(#g-face)', null);
+      if (B.male) head += Line('M124 138 Q150 154 176 138', SHADE, 2);
+      else head += both(`<ellipse cx="121" cy="115" rx="12" ry="7" fill="url(#g-blush)" opacity=".7"/>`);
       if (show('face')) head += facePaint(o.face ? o.face.style : 'none');
       const young = kind === 'kid';
-      head += eyes(o.eyes ? o.eyes.style : 'round', ec, skin, B.male, young);
-      head += young
-        ? Line('M146 112 Q150 115 154 112', darken(skin, 0.72), 1.4)
-        : Line(B.male ? 'M150 94 Q145 108 148 114' : 'M150 96 Q146 106 149 112', darken(skin, 0.8), 1.6) +
-          Line('M145 114 Q150 117 155 114', darken(skin, 0.7), 1.4) + `<ellipse cx="152" cy="108" rx="2" ry="3" fill="#fff" opacity=".35"/>`;
-      head += mouth(o.lips, skin, B.male);
+      head += eyes(o.eyes ? o.eyes.style : 'round', ec, skin, B.male, young, hc);
+      head += nose(skin, B.male, young);
+      head += mouth(o.lips, skin, B.male, young);
     }
     if (hairOn) head += hairFront(hairStyle, hc);
     if (show('extra')) head += extraFace(o.extra);
@@ -711,7 +749,7 @@ const Avatar = (() => {
     if (kind === 'kid') {
       return `<g class="doll">${at(306, 1.34, back)}<g transform="translate(150 730) scale(.88 .72) translate(-150 -730)">${body}</g>${at(306, 1.34, headG)}</g>`;
     }
-    return `<g class="doll">${at(158, 1.18, back)}${body}${at(158, 1.18, headG)}</g>`;
+    return `<g class="doll">${at(160, 1.26, back)}${body}${at(160, 1.26, headG)}</g>`;
   }
 
   const VIEW = {
