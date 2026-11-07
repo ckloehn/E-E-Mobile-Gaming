@@ -1,5 +1,8 @@
 # Painted Doll Test Kit: Instructions for the Art Agent
 
+> **Done.** The test pieces passed and now live in `art/dolls/woman/`. The full wardrobe is in
+> `docs/doll-wardrobe-prompt.md`. The rules below (canvas, style, layering) still apply.
+
 ## Goal
 
 Make **one painted doll plus a few pieces of clothing** as separate see-through pictures that line up
