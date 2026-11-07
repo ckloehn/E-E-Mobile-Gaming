@@ -105,7 +105,9 @@ const Painted = (() => {
   }
 
   const files = item => item.cat === 'hair' ? [`${item.body}/${item.file}-back`, `${item.body}/${item.file}-front`] : [`${item.body}/${item.file}`];
-  const bodyReady = body => has(`${body}/base`);
+  const hasHair = body => PAINTED_CATALOG.some(([b, file, cat]) => b === body && cat === 'hair' && has(`${b}/${file}-back`) && has(`${b}/${file}-front`));
+  // The kid doll is painted bald (hair is separate), so she waits until a hairstyle exists.
+  const bodyReady = body => has(`${body}/base`) && (body === 'man' || hasHair(body));
   const available = item => item.body === '*' || files(item).every(has);
 
   // ----- Coloring the gray pieces (done once per piece and color, then reused) -----

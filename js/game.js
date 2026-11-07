@@ -311,7 +311,7 @@ function renderModel(pop) {
 
 function renderTabs() {
   const cats = CATEGORIES.filter(c => ITEMS.some(i => i.cat === c.id && Doll.fits(ui.char, i)));
-  if (!cats.some(c => c.id === ui.tab)) ui.tab = cats[0].id;
+  if (!cats.some(c => c.id === ui.tab)) ui.tab = cats.length ? cats[0].id : null;
   $('[data-tabs]').innerHTML = cats.map(c =>
     `<button class="tab ${c.id === ui.tab ? 'on' : ''}" data-action="tab" data-tab="${c.id}" aria-label="${c.name}">${c.icon}</button>`).join('');
 }
@@ -320,6 +320,11 @@ function renderItems() {
   const look = Doll.look(ui.char);
   const list = ITEMS.filter(i => i.cat === ui.tab && Doll.fits(ui.char, i));
   const box = $('[data-items]');
+  if (!list.length) {
+    box.innerHTML = '<p class="coming-soon"><span class="say">New clothes are coming soon!</span></p>';
+    decorate(box);
+    return;
+  }
   box.innerHTML = list.map(item => {
     const locked = !owns(item);
     const on = look[item.cat] === item.id;

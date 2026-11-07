@@ -9,4 +9,6 @@ const DOLL_ART = {
   "woman/hair-long-front": [280, 225, 745, 1031],
   "woman/shoes-heels": [366, 2255, 658, 2445],
   "woman/top-tee": [292, 640, 731, 1246],
+  "man/base": [119, 170, 905, 2440],
+  "kid/base": [237, 1060, 786, 2440],
 };
