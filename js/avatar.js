@@ -30,12 +30,21 @@ const Avatar = (() => {
   const edge = fill => darken(fill, 0.62);
   const isHex = c => /^#[0-9a-f]{6}$/i.test(c);
 
-  // Glossy gradients, made once per color and shared by id. Collected while drawing, then added as <defs>.
-  let DEFS = new Map();
+  // Glossy gradients, made once per color. They go in one shared <defs> on the page: a gradient inside a
+  // drawing on a hidden screen would not paint anywhere else that uses it.
+  const made = new Set();
+  function addDef(id, markup) {
+    if (made.has(id)) return;
+    made.add(id);
+    const host = document.getElementById('dyn-defs');
+    if (!host) return;
+    const doc = new DOMParser().parseFromString(`<svg xmlns="http://www.w3.org/2000/svg">${markup}</svg>`, 'image/svg+xml');
+    host.appendChild(document.importNode(doc.documentElement.firstChild, true));
+  }
   function cyl(hex) {
     if (!isHex(hex)) return hex;
     const id = 'cg' + hex.slice(1);
-    if (!DEFS.has(id)) DEFS.set(id, `<linearGradient id="${id}" x1="0" y1="0" x2="1" y2=".2">` +
+    addDef(id, `<linearGradient id="${id}" x1="0" y1="0" x2="1" y2=".2">` +
       `<stop offset="0" stop-color="${lighten(hex, 0.34)}"/><stop offset=".3" stop-color="${hex}"/>` +
       `<stop offset=".68" stop-color="${hex}"/><stop offset="1" stop-color="${darken(hex, 0.78)}"/></linearGradient>`);
     return `url(#${id})`;
@@ -43,7 +52,7 @@ const Avatar = (() => {
   function hairFill(hex) {
     if (!isHex(hex)) return hex;
     const id = 'hg' + hex.slice(1);
-    if (!DEFS.has(id)) DEFS.set(id, `<linearGradient id="${id}" x1="0" y1="0" x2=".15" y2="1">` +
+    addDef(id, `<linearGradient id="${id}" x1="0" y1="0" x2=".15" y2="1">` +
       `<stop offset="0" stop-color="${lighten(hex, 0.3)}"/><stop offset=".38" stop-color="${hex}"/>` +
       `<stop offset="1" stop-color="${darken(hex, 0.7)}"/></linearGradient>`);
     return `url(#${id})`;
@@ -667,9 +676,7 @@ const Avatar = (() => {
 
   // `only` limits drawing to some layers, so the picker can show one item by itself.
   function draw(look, kind = 'adult', only = null) {
-    DEFS = new Map();
-    const out = drawParts(look, kind, only);
-    return `<defs>${[...DEFS.values()].join('')}</defs>` + out;
+    return drawParts(look, kind, only);
   }
 
   function drawParts(look, kind, only) {
