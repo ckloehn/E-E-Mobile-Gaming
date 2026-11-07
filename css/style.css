@@ -150,8 +150,7 @@ svg { display: block; overflow: visible; }
   padding-inline: 16px;
 }
 .person { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 0 1 auto; }
-.person svg { width: min(22vw, 28vh, 250px); height: auto; filter: drop-shadow(0 8px 6px rgba(75,42,107,.22)); animation: bob 3s ease-in-out infinite; animation-delay: var(--d, 0s); }
-.person.kid svg { width: min(17vw, 22vh, 196px); }
+.person svg { height: min(56vh, 52vw); width: auto; filter: drop-shadow(0 8px 6px rgba(75,42,107,.22)); animation: bob 3s ease-in-out infinite; animation-delay: var(--d, 0s); }
 .person:active svg { transform: scale(.95); }
 .person .name {
   font-family: var(--font-display); font-weight: 800; font-size: clamp(16px, 2.6vw, 24px);
@@ -235,6 +234,7 @@ svg { display: block; overflow: visible; }
   transition: transform .12s;
 }
 .item svg { width: 100%; height: 100%; overflow: hidden; }
+.item { background: linear-gradient(#FFFFFF, #FFF0FA); }
 .item:active { transform: scale(.93); }
 .item.on { box-shadow: 0 0 0 5px var(--grape), 0 6px 14px rgba(142,92,255,.35); }
 .item.locked svg { opacity: .8; }
@@ -248,8 +248,7 @@ svg { display: block; overflow: visible; }
 /* Phones held upright: two rows of people so everyone is big enough to tap */
 @media (orientation: portrait) and (max-width: 600px) {
   .family { flex-wrap: wrap; row-gap: 6px; column-gap: 10%; bottom: 2%; }
-  .person svg { width: min(34vw, 19vh); }
-  .person.kid svg { width: min(28vw, 15.5vh); }
+  .person svg { height: min(31vh, 84vw); }
 }
 
 /* Side by side on wide screens (iPad sideways) */
@@ -264,8 +263,7 @@ svg { display: block; overflow: visible; }
   .dress .bar { grid-column: 1 / -1; padding-block: 4px; }
   .dress .panel { height: auto; border-radius: 22px 0 0 0; }
   .round-btn { width: 46px; height: 46px; font-size: 22px; }
-  .person svg { width: min(16vw, 40vh); }
-  .person.kid svg { width: min(13vw, 32vh); }
+  .person svg { height: 54vh; }
 }
 
 /* ---------- Fashion show: pick a model ---------- */
@@ -280,8 +278,7 @@ svg { display: block; overflow: visible; }
 .theme-icon { font-size: clamp(64px, 12vw, 110px); line-height: 1; animation: breathe 2s ease-in-out infinite; }
 .pick { margin: 0; font-size: clamp(20px, 3vw, 28px); font-weight: 700; }
 .pick-row { display: flex; gap: 14px; justify-content: center; align-items: flex-end; flex-wrap: wrap; }
-.person.mini svg { width: min(18vw, 18vh, 150px); }
-.person.mini.kid svg { width: min(14vw, 14vh, 118px); }
+.person.mini svg { height: min(38vh, 50vw); }
 
 /* ---------- Runway ---------- */
 .runway {

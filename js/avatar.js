@@ -1,377 +1,479 @@
-// Draws a character as SVG from a "look" (one item id per category).
-// The body is drawn on a 300 x 480 grid, facing forward:
-// head centered at (150,128), shoulders at y 210, hips at y 300, feet at y 424.
+// Draws a fashion doll as SVG from a "look" (one item id per category).
+// Grid is 300 wide x 740 tall, doll facing forward:
+// head centered at (150,95), shoulders at y 190, waist at y 296, hips at y 350, ankles at y 690.
+// Kids use the same drawing with a shorter body and a slightly bigger head.
 
 const Avatar = (() => {
-  const LINE = '#5A3A4A';
-  const SHADE = 'rgba(60,20,60,.13)';
-  const SHINE = 'rgba(255,255,255,.45)';
+  const INK = 'rgba(80,35,70,.55)';
+  const SHADE = 'rgba(70,20,70,.16)';
+  const SHINE = 'rgba(255,255,255,.5)';
   const PATTERN = { dots: 'url(#p-dots)', stripes: 'url(#p-stripes)', glitter: 'url(#p-glitter)' };
 
-  // Body landmarks
-  const ARM_L = [[101, 222], [80, 312]];
-  const ARM_R = [[199, 222], [220, 312]];
-  const HAND_L = [79, 319];
-  const HAND_R = [221, 319];
-  const LEG_L = [[132, 300], [130, 414]];
-  const LEG_R = [[168, 300], [170, 414]];
-
+  // ---------- Color helpers ----------
   const fillOf = c => (COLORS[c] ? COLORS[c].hex : c || '#ccc');
-  const lerp = ([a, b], t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
-  const line = (p, q, color, width, cap = 'round') =>
-    `<path d="M${p[0]} ${p[1]} L${q[0]} ${q[1]}" stroke="${color}" stroke-width="${width}" stroke-linecap="${cap}" fill="none"/>`;
-  const path = (d, fill, extra = '') => `<path d="${d}" fill="${fill}" ${extra}/>`;
-  const withPattern = (d, fill, pattern) => path(d, fill) + (pattern ? path(d, PATTERN[pattern]) : '');
+  function darken(hex, f = 0.72) {
+    if (!/^#[0-9a-f]{6}$/i.test(hex)) return INK;
+    const n = parseInt(hex.slice(1), 16);
+    const ch = s => Math.round(((n >> s) & 255) * f);
+    return `rgb(${ch(16)},${ch(8)},${ch(0)})`;
+  }
+  const edge = fill => darken(fill, 0.62);
+
+  // ---------- Shape helpers ----------
+  const f1 = n => n.toFixed(1);
+  const P = (d, fill, stroke = INK, w = 1.6) =>
+    `<path d="${d}" fill="${fill}"${stroke ? ` stroke="${stroke}" stroke-width="${w}" stroke-linejoin="round"` : ''}/>`;
+  const Line = (d, color, w = 1.6) => `<path d="${d}" fill="none" stroke="${color}" stroke-width="${w}" stroke-linecap="round"/>`;
+  const withPattern = (d, fill, pattern, stroke) => P(d, fill, stroke || edge(fill)) + (pattern ? P(d, PATTERN[pattern], null) : '');
   const mirror = svg => `<g transform="translate(300 0) scale(-1 1)">${svg}</g>`;
-  const star = (x, y, r, fill) => {
+  const both = svg => svg + mirror(svg);
+
+  function star(x, y, r, fill, stroke) {
     let d = '';
     for (let i = 0; i < 10; i++) {
-      const a = -Math.PI / 2 + i * Math.PI / 5;
-      const rr = i % 2 ? r * 0.45 : r;
-      d += `${i ? 'L' : 'M'}${(x + rr * Math.cos(a)).toFixed(1)} ${(y + rr * Math.sin(a)).toFixed(1)}`;
+      const a = -Math.PI / 2 + (i * Math.PI) / 5, rr = i % 2 ? r * 0.45 : r;
+      d += `${i ? 'L' : 'M'}${f1(x + rr * Math.cos(a))} ${f1(y + rr * Math.sin(a))}`;
     }
-    return path(d + 'Z', fill);
-  };
-  const heart = (x, y, s, fill) =>
-    path(`M${x} ${y + s * 0.9} C${x - s * 1.4} ${y} ${x - s * 0.8} ${y - s} ${x} ${y - s * 0.35} C${x + s * 0.8} ${y - s} ${x + s * 1.4} ${y} ${x} ${y + s * 0.9} Z`, fill);
+    return P(d + 'Z', fill, stroke || null, 1);
+  }
+  const heart = (x, y, s, fill, stroke) =>
+    P(`M${x} ${y + s * 0.9} C${x - s * 1.4} ${y} ${x - s * 0.8} ${y - s} ${x} ${y - s * 0.35} C${x + s * 0.8} ${y - s} ${x + s * 1.4} ${y} ${x} ${y + s * 0.9} Z`, fill, stroke || null, 1);
+
+  // A limb is a soft tube along a curve, with a width that changes along the way.
+  const bez = ([a, b, c], t) => [(1 - t) ** 2 * a[0] + 2 * (1 - t) * t * b[0] + t * t * c[0], (1 - t) ** 2 * a[1] + 2 * (1 - t) * t * b[1] + t * t * c[1]];
+  const bezD = ([a, b, c], t) => [2 * (1 - t) * (b[0] - a[0]) + 2 * t * (c[0] - b[0]), 2 * (1 - t) * (b[1] - a[1]) + 2 * t * (c[1] - b[1])];
+  function widthAt(ws, t) {
+    for (let i = 1; i < ws.length; i++) {
+      if (t <= ws[i][0]) {
+        const [t0, w0] = ws[i - 1], [t1, w1] = ws[i];
+        return w0 + ((w1 - w0) * (t - t0)) / (t1 - t0);
+      }
+    }
+    return ws[ws.length - 1][1];
+  }
+  function tube(curve, ws, t0 = 0, t1 = 1, extra = 0, roundEnd = true) {
+    const L = [], R = [], n = 16;
+    for (let i = 0; i <= n; i++) {
+      const t = t0 + ((t1 - t0) * i) / n;
+      const p = bez(curve, t), d = bezD(curve, t), len = Math.hypot(d[0], d[1]);
+      const nx = -d[1] / len, ny = d[0] / len, w = (widthAt(ws, t) + extra) / 2;
+      L.push([p[0] + nx * w, p[1] + ny * w]);
+      R.push([p[0] - nx * w, p[1] - ny * w]);
+    }
+    const pt = p => `${f1(p[0])} ${f1(p[1])}`;
+    const we = (widthAt(ws, t1) + extra) / 2, w0 = (widthAt(ws, t0) + extra) / 2;
+    let d = 'M' + pt(L[0]) + L.slice(1).map(p => ' L' + pt(p)).join('');
+    d += roundEnd ? ` A${f1(we)} ${f1(we)} 0 0 0 ${pt(R[n])}` : ' L' + pt(R[n]);
+    d += R.slice(0, n).reverse().map(p => ' L' + pt(p)).join('');
+    d += ` A${f1(w0)} ${f1(w0)} 0 0 0 ${pt(L[0])} Z`;
+    return d;
+  }
+
+  // ---------- Body landmarks ----------
+  const ARM = [[103, 194], [86, 292], [84, 394]];
+  const ARM_W = [[0, 23], [0.5, 15], [1, 11]];
+  const LEG = [[131, 348], [133, 520], [138, 688]];
+  const LEG_W = [[0, 42], [0.42, 23], [0.62, 24], [1, 13]];
+  const TORSO = 'M140 130 L140 168 Q122 174 106 180 Q96 185 96 197 L98 214 Q104 252 124 296 Q118 330 112 352 L188 352 Q182 330 176 296 Q196 252 202 214 L204 197 Q204 185 194 180 Q178 174 160 168 L160 130 Z';
+  const HAND = 'M78 390 Q73 408 77 423 Q84 433 91 423 Q95 408 90 390 Z';
+  const THUMB = 'M89 398 Q97 404 95 414 Q91 416 88 410 Z';
+  const FOOT = 'M130 684 Q127 702 131 720 Q138 730 145 720 Q149 702 146 684 Z';
+  const FACE = 'M108 90 C106 40 194 40 192 90 C192 123 174 147 150 149 C126 147 108 123 108 90 Z';
 
   // ---------- Hair ----------
-  const CAP_BACK = 'M74 142 C64 58 108 42 150 42 C192 42 236 58 226 142 Z';
-  const FRINGE = 'M76 126 C72 62 108 46 150 46 C192 46 228 62 224 126 C214 104 198 92 178 90 C166 102 136 104 118 96 C102 102 86 110 76 126 Z';
-  const SIDEPART = 'M76 132 C68 58 112 44 154 44 C198 44 232 64 224 124 C204 94 168 82 130 86 C106 92 86 110 76 132 Z';
-  const STRAIGHT = 'M76 122 C76 60 110 46 150 46 C190 46 224 60 224 122 L224 128 Q150 98 76 128 Z';
+  // Each style has a back piece (behind the head), a front piece, and strand lines.
+  const CAP = 'M104 104 C94 46 128 32 152 32 C182 32 208 48 196 104 Z';
+  const BANGS = 'M106 104 C102 42 198 42 194 104 C190 84 182 70 168 64 C156 72 140 74 128 70 C116 78 108 90 106 104 Z';
+  const SWEEP = 'M106 106 C100 44 150 32 176 42 C198 52 200 78 194 112 C188 86 176 70 158 64 C140 76 122 84 106 106 Z';
+  const HAIR = {
+    short: { back: CAP, front: 'M106 100 C100 46 146 30 176 40 C198 50 200 76 194 106 C186 80 170 64 150 62 C134 72 118 80 106 100 Z',
+      strands: ['M120 82 Q140 56 172 50', 'M150 62 Q170 60 188 82'] },
+    spiky: { back: CAP, front: 'M106 104 L104 60 L120 70 L122 36 L140 58 L150 26 L162 58 L180 36 L182 70 L196 60 L194 104 C180 76 166 68 150 70 C134 68 120 76 106 104 Z',
+      strands: ['M128 66 L136 46', 'M162 66 L168 46'] },
+    bob: {
+      back: 'M100 96 C92 34 208 34 200 96 C204 128 206 150 196 160 Q172 166 150 160 Q128 166 104 160 C94 150 96 128 100 96 Z',
+      front: 'M106 104 C100 42 200 42 194 104 C190 86 186 80 180 76 L170 80 L160 74 L150 80 L140 74 L130 80 L120 76 C114 82 108 92 106 104 Z',
+      strands: ['M112 108 Q108 140 116 158', 'M188 108 Q192 140 184 158', 'M130 52 Q150 44 170 52'] },
+    long: {
+      back: 'M102 92 C90 30 210 30 198 92 C206 160 216 250 212 332 Q182 346 150 338 Q118 346 88 332 C84 250 94 160 102 92 Z',
+      front: SWEEP,
+      strands: ['M104 120 Q96 220 100 326', 'M196 120 Q206 220 200 326', 'M112 150 Q108 240 116 332', 'M188 150 Q194 240 186 334', 'M120 84 Q140 56 172 50'] },
+    superlong: {
+      back: 'M102 92 C90 30 210 30 198 92 C210 200 226 380 222 560 Q186 576 150 566 Q114 576 78 560 C74 380 90 200 102 92 Z',
+      front: SWEEP,
+      strands: ['M104 120 Q90 320 92 552', 'M196 120 Q212 320 208 552', 'M114 160 Q104 360 112 560', 'M186 160 Q198 360 188 562', 'M120 84 Q140 56 172 50'] },
+    wavy: {
+      back: 'M102 92 C90 30 210 30 198 92 C212 130 200 170 214 210 C226 250 204 290 220 330 Q202 350 184 334 Q168 352 150 336 Q132 352 116 334 Q98 350 80 330 C96 290 74 250 86 210 C100 170 88 130 102 92 Z',
+      front: SWEEP,
+      strands: ['M100 120 Q112 160 96 206 Q82 250 98 300', 'M200 120 Q188 160 204 206 Q218 250 202 300', 'M120 84 Q140 56 172 50'] },
+    ponytail: {
+      back: CAP + ' M180 44 C230 30 240 90 226 160 C218 200 224 240 214 270 Q204 282 200 266 C212 220 200 180 206 140 C210 100 200 70 176 62 Z',
+      front: BANGS, strands: ['M214 80 Q224 150 212 250', 'M122 56 Q150 42 178 54'], tie: [[188, 52, 8]] },
+    pigtails: {
+      back: CAP +
+        ' M108 92 C76 96 66 150 72 200 C76 236 66 256 74 270 Q84 276 86 262 C92 230 84 200 92 160 C96 130 104 112 112 104 Z' +
+        ' M192 92 C224 96 234 150 228 200 C224 236 234 256 226 270 Q216 276 214 262 C208 230 216 200 208 160 C204 130 196 112 188 104 Z',
+      front: BANGS, strands: ['M84 130 Q76 190 80 258', 'M216 130 Q224 190 220 258', 'M122 56 Q150 42 178 54'], tie: [[104, 100, 7], [196, 100, 7]] },
+    buns: { back: CAP, extra: [[112, 40, 22], [188, 40, 22]], front: BANGS,
+      strands: ['M100 36 Q112 26 124 38', 'M176 38 Q188 26 200 36', 'M122 56 Q150 42 178 54'] },
+    puffs: { back: CAP, extra: [[102, 44, 30], [198, 44, 30]], front: SWEEP, strands: ['M86 40 Q96 26 110 30', 'M190 30 Q204 26 214 40'] },
+    curly: { curls: true, front: BANGS, strands: [] },
+    braid: { back: CAP, front: BANGS, strands: ['M122 56 Q150 42 178 54'], braid: true },
+  };
 
   function hairBack(style, hc) {
-    switch (style) {
-      case 'short': return path(CAP_BACK, hc);
-      case 'spiky': return path(CAP_BACK, hc);
-      case 'bob': return path('M68 136 C62 50 110 40 150 40 C190 40 238 50 232 136 L234 202 Q150 216 66 202 Z', hc);
-      case 'long': return path('M68 136 C62 50 110 40 150 40 C190 40 238 50 232 136 L240 302 Q150 322 60 302 Z', hc);
-      case 'superlong': return path('M68 136 C62 50 110 40 150 40 C190 40 238 50 232 136 L246 436 Q150 456 54 436 Z', hc);
-      case 'wavy': {
-        let s = path('M68 136 C62 50 110 40 150 40 C190 40 238 50 232 136 L238 290 L62 290 Z', hc);
-        for (let x = 66; x <= 234; x += 24) s += `<circle cx="${x}" cy="${292 + ((x / 24) % 2) * 6}" r="17" fill="${hc}"/>`;
-        return s;
+    const h = HAIR[style] || HAIR.short;
+    const ink = edge(hc);
+    let s = '';
+    if (h.curls) {
+      for (let a = 160; a <= 380; a += 18) {
+        const r = (a * Math.PI) / 180;
+        s += `<circle cx="${f1(150 + 62 * Math.cos(r))}" cy="${f1(110 + 74 * Math.sin(r))}" r="22" fill="${hc}" stroke="${ink}" stroke-width="1.4"/>`;
       }
-      case 'ponytail':
-        return path(CAP_BACK, hc) +
-          path('M200 72 C262 62 274 150 252 232 C246 252 230 246 234 226 C250 156 236 104 196 92 Z', hc);
-      case 'pigtails': {
-        const tail = 'M90 110 C40 120 34 204 52 246 C58 258 72 254 68 236 C58 192 66 150 98 130 Z';
-        return path(CAP_BACK, hc) + path(tail, hc) + mirror(path(tail, hc));
-      }
-      case 'buns':
-        return path(CAP_BACK, hc) + `<circle cx="92" cy="62" r="28" fill="${hc}"/><circle cx="208" cy="62" r="28" fill="${hc}"/>`;
-      case 'puffs':
-        return path(CAP_BACK, hc) + `<circle cx="80" cy="74" r="36" fill="${hc}"/><circle cx="220" cy="74" r="36" fill="${hc}"/>`;
-      case 'curly': {
-        let s = '';
-        for (let a = 150; a <= 390; a += 20) {
-          const r = (a * Math.PI) / 180;
-          s += `<circle cx="${(150 + 80 * Math.cos(r)).toFixed(1)}" cy="${(128 + 76 * Math.sin(r)).toFixed(1)}" r="24" fill="${hc}"/>`;
-        }
-        return s;
-      }
-      case 'braid': return path(CAP_BACK, hc);
-      default: return '';
+      return s;
     }
+    if (h.extra) for (const [x, y, r] of h.extra) s += `<circle cx="${x}" cy="${y}" r="${r}" fill="${hc}" stroke="${ink}" stroke-width="1.6"/>`;
+    return s + P(h.back, hc, ink);
   }
 
   function hairFront(style, hc) {
+    const h = HAIR[style] || HAIR.short;
+    const ink = edge(hc);
     let s = '';
-    switch (style) {
-      case 'short': s = path(SIDEPART, hc); break;
-      case 'spiky': s = path('M76 128 L78 66 L100 84 L106 40 L130 70 L150 30 L170 70 L194 40 L200 84 L222 66 L224 128 Q150 94 76 128 Z', hc); break;
-      case 'bob': case 'buns': s = path(STRAIGHT, hc); break;
-      case 'long': case 'superlong': case 'wavy': case 'puffs': s = path(SIDEPART, hc); break;
-      case 'ponytail': case 'pigtails': s = path(FRINGE, hc) + tie(style); break;
-      case 'curly':
-        for (const [x, y] of [[96, 92], [116, 72], [140, 62], [164, 62], [186, 72], [204, 92]]) s += `<circle cx="${x}" cy="${y}" r="20" fill="${hc}"/>`;
-        break;
-      case 'braid': {
-        s = path(FRINGE, hc);
-        for (let i = 0; i < 9; i++) {
-          const x = 212 + i * 2.2, y = 150 + i * 19;
-          s += `<ellipse cx="${x}" cy="${y}" rx="14" ry="13" fill="${hc}"/><path d="M${x - 12} ${y + 3} Q${x} ${y + 12} ${x + 12} ${y + 3}" stroke="${SHADE}" stroke-width="3" fill="none"/>`;
-        }
-        s += `<circle cx="230" cy="324" r="7" fill="#FF6FB5"/>`;
-        break;
+    if (h.braid) {
+      for (let i = 0; i < 10; i++) {
+        const x = 182 + i * 2.6, y = 128 + i * 21;
+        s += `<ellipse cx="${f1(x)}" cy="${y}" rx="13" ry="13" fill="${hc}" stroke="${ink}" stroke-width="1.4"/>` +
+          Line(`M${f1(x - 10)} ${y + 2} Q${f1(x)} ${y + 10} ${f1(x + 10)} ${y + 2}`, ink, 1.2);
       }
+      s += `<circle cx="207" cy="342" r="6" fill="#FF6FB5" stroke="${INK}" stroke-width="1"/>`;
     }
-    // a shiny streak so hair looks soft
-    if (s) s += `<path d="M112 66 Q130 56 152 56" stroke="${SHINE}" stroke-width="6" stroke-linecap="round" fill="none"/>`;
+    s += P(h.front, hc, ink);
+    if (h.curls) {
+      for (const [x, y] of [[112, 84], [126, 62], [148, 54], [170, 58], [188, 76]]) s += `<circle cx="${x}" cy="${y}" r="15" fill="${hc}" stroke="${ink}" stroke-width="1.4"/>`;
+    }
+    for (const d of h.strands) s += Line(d, ink, 1.3);
+    s += Line('M126 60 Q144 48 166 50', SHINE, 4) + Line('M120 74 Q128 66 136 62', SHINE, 2.5);
+    if (h.tie) for (const [x, y, r] of h.tie) s += `<circle cx="${x}" cy="${y}" r="${r}" fill="#FF6FB5" stroke="${INK}" stroke-width="1"/>`;
     return s;
   }
 
-  function tie(style) {
-    if (style === 'ponytail') return `<circle cx="204" cy="84" r="8" fill="#FF6FB5"/>`;
-    return `<circle cx="74" cy="134" r="8" fill="#FF6FB5"/><circle cx="226" cy="134" r="8" fill="#FF6FB5"/>`;
-  }
-
   // ---------- Face ----------
+  let clipId = 0;
   function eyes(style, ec, skin) {
-    const one = (x, mirrorWink) => {
-      const y = 138;
+    const one = (x, right) => {
+      const y = 93, s = right ? 1 : -1;
+      const almond = `M${x - 12} ${y} Q${x - 2} ${y - 10} ${x + 12} ${y - 2} Q${x + 2} ${y + 7} ${x - 12} ${y} Z`;
+      const lashLine = Line(`M${x - 13} ${y + 0.5} Q${x - 2} ${y - 11} ${x + 13} ${y - 2}`, '#2A1F2D', 2.6);
+      const flick = Line(right ? `M${x + 12} ${y - 2} L${x + 17} ${y - 6}` : `M${x - 12} ${y} L${x - 17} ${y - 5}`, '#2A1F2D', 2);
+      const iris = (r, shape) => {
+        const cy = y - 1;
+        if (shape === 'star') return star(x, cy, r + 2, ec, '#2A1F2D');
+        if (shape === 'heart') return heart(x, cy, r - 0.5, ec, '#2A1F2D');
+        return `<circle cx="${x}" cy="${cy}" r="${r}" fill="${ec}"/><circle cx="${x}" cy="${cy}" r="${r}" fill="url(#g-iris)"/>` +
+          `<circle cx="${x}" cy="${cy}" r="${r * 0.42}" fill="#1E1522"/>`;
+      };
+      const shine = big => `<circle cx="${x - 2.5}" cy="${y - 4}" r="${big ? 2.6 : 2}" fill="#fff"/>` + (big ? `<circle cx="${x + 3}" cy="${y + 1.5}" r="1.3" fill="#fff"/>` : '');
+      const open = (r, shape, big) => {
+        const id = `eye${++clipId}`;
+        return P(almond, '#fff', null) + `<clipPath id="${id}"><path d="${almond}"/></clipPath><g clip-path="url(#${id})">${iris(r, shape)}</g>` +
+          shine(big) + lashLine;
+      };
+      const lashes = n => [0, 1, 2].slice(0, n).map(k => {
+        const bx = right ? x + 6 + k * 3.5 : x - 6 - k * 3.5, by = y - 6 + k * 2;
+        return Line(`M${bx} ${by} l${s * 4} ${-6 + k}`, '#2A1F2D', 1.6);
+      }).join('');
       switch (style) {
-        case 'happy': return `<path d="M${x - 12} ${y + 3} Q${x} ${y - 10} ${x + 12} ${y + 3}" stroke="${LINE}" stroke-width="4.5" stroke-linecap="round" fill="none"/>`;
+        case 'happy': return Line(`M${x - 12} ${y + 2} Q${x} ${y - 9} ${x + 12} ${y + 2}`, '#2A1F2D', 2.6) + lashes(2);
         case 'wink':
-          if (mirrorWink) return `<path d="M${x - 12} ${y} Q${x} ${y + 8} ${x + 12} ${y}" stroke="${LINE}" stroke-width="4.5" stroke-linecap="round" fill="none"/>`;
-          return roundEye(x, y, 11, 13, 8);
-        case 'star': return star(x, y, 15, ec) + `<circle cx="${x - 3}" cy="${y - 4}" r="2.5" fill="#fff"/>`;
-        case 'heart': return heart(x, y, 12, ec) + `<circle cx="${x - 4}" cy="${y - 3}" r="2.5" fill="#fff"/>`;
-        case 'sparkly': return roundEye(x, y, 14, 16, 11, true);
+          if (right) return Line(`M${x - 12} ${y - 1} Q${x} ${y + 6} ${x + 12} ${y - 1}`, '#2A1F2D', 2.6) + lashes(2);
+          return open(6.8, null, false) + flick + lashes(3);
         case 'sleepy':
-          return roundEye(x, y, 11, 13, 8) +
-            `<path d="M${x - 13} ${y - 15} L${x + 13} ${y - 15} L${x + 13} ${y - 1} Q${x} ${y + 3} ${x - 13} ${y - 1} Z" fill="${skin}"/>` +
-            `<path d="M${x - 12} ${y - 1} Q${x} ${y + 3} ${x + 12} ${y - 1}" stroke="${LINE}" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+          return open(6.8, null, false) +
+            P(`M${x - 14} ${y - 14} L${x + 14} ${y - 14} L${x + 14} ${y - 2} Q${x} ${y + 1} ${x - 14} ${y} Z`, skin, null) +
+            Line(`M${x - 13} ${y} Q${x} ${y + 1} ${x + 13} ${y - 2}`, '#2A1F2D', 2.4);
+        case 'sparkly': return open(8, null, true) + flick + lashes(3);
+        case 'star': return open(6.8, 'star', false) + flick + lashes(2);
+        case 'heart': return open(6.8, 'heart', false) + flick + lashes(2);
         case 'lashes':
-          return roundEye(x, y, 11, 13, 8) + [-1, 0, 1].map(k => {
-            const side = x < 150 ? -1 : 1;
-            const bx = x + side * 6 + k * 5, by = y - 11 + Math.abs(k);
-            return `<path d="M${bx} ${by} L${bx + side * 5 + k * 2} ${by - 7}" stroke="${LINE}" stroke-width="3" stroke-linecap="round"/>`;
-          }).join('');
-        default: return roundEye(x, y, 11, 13, 8);
+          return Line(`M${x - 12} ${y - 6} Q${x} ${y - 16} ${x + 12} ${y - 8}`, 'rgba(190,120,200,.35)', 6) + open(6.8, null, false) + flick + lashes(3);
+        default: return open(6.8, null, false);
       }
     };
-    const roundEye = (x, y, rx, ry, ir, extraShine) =>
-      `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="#fff"/>` +
-      `<circle cx="${x}" cy="${y + 1}" r="${ir}" fill="${ec}"/>` +
-      `<circle cx="${x}" cy="${y + 1}" r="${ir * 0.45}" fill="#2A1F2D"/>` +
-      `<circle cx="${x - ir * 0.35}" cy="${y - ir * 0.35}" r="${ir * 0.3}" fill="#fff"/>` +
-      (extraShine ? `<circle cx="${x + ir * 0.4}" cy="${y + ir * 0.45}" r="${ir * 0.16}" fill="#fff"/>` : '');
-    return one(122, false) + one(178, true);
+    return one(132, false) + one(168, true) +
+      Line('M120 78 Q131 72 142 76', darken(skin, 0.45), 2.2) + Line('M158 76 Q169 72 180 78', darken(skin, 0.45), 2.2);
   }
 
   function facePaint(style) {
     switch (style) {
-      case 'blush': return `<ellipse cx="104" cy="160" rx="14" ry="8" fill="#FF8FB1" opacity=".55"/><ellipse cx="196" cy="160" rx="14" ry="8" fill="#FF8FB1" opacity=".55"/>`;
-      case 'freckles': return [[100, 154], [108, 160], [96, 162], [200, 154], [192, 160], [204, 162]]
-        .map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2.6" fill="#B07850"/>`).join('');
-      case 'stars': return star(102, 160, 9, '#FFD93D') + star(198, 160, 9, '#FFD93D') + star(214, 146, 5, '#FF6FB5');
-      case 'hearts': return heart(102, 160, 8, '#FF4F8B') + heart(198, 160, 8, '#FF4F8B');
-      case 'eyeshadow':
-        return `<path d="M108 128 Q122 112 136 128" stroke="url(#g-rainbow)" stroke-width="8" stroke-linecap="round" fill="none" opacity=".85"/>` +
-               `<path d="M164 128 Q178 112 192 128" stroke="url(#g-rainbow)" stroke-width="8" stroke-linecap="round" fill="none" opacity=".85"/>`;
-      case 'glitter': return [[100, 150], [110, 164], [94, 168], [200, 150], [190, 164], [206, 168], [150, 104], [140, 96], [160, 96]]
-        .map(([x, y], i) => star(x, y, i % 3 ? 3.5 : 5, i % 2 ? '#FFE680' : '#FFFFFF')).join('');
+      case 'blush': return `<ellipse cx="122" cy="113" rx="10" ry="6" fill="#FF7FA8" opacity=".45"/><ellipse cx="178" cy="113" rx="10" ry="6" fill="#FF7FA8" opacity=".45"/>`;
+      case 'freckles': return [[118, 108], [124, 112], [116, 114], [182, 108], [176, 112], [184, 114], [146, 104], [154, 104]]
+        .map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.4" fill="#A0663E"/>`).join('');
+      case 'stars': return star(120, 114, 6, '#FFD93D', INK) + star(180, 114, 6, '#FFD93D', INK) + star(190, 102, 3.5, '#FF6FB5');
+      case 'hearts': return heart(120, 114, 5.5, '#FF4F8B', INK) + heart(180, 114, 5.5, '#FF4F8B', INK);
+      case 'eyeshadow': return Line('M120 87 Q132 76 145 86', 'url(#g-rainbow)', 6) + Line('M155 86 Q168 76 180 87', 'url(#g-rainbow)', 6);
+      case 'glitter': return [[116, 106], [124, 116], [112, 118], [184, 106], [176, 116], [188, 118], [150, 66], [142, 62], [158, 62]]
+        .map(([x, y], i) => star(x, y, i % 3 ? 2.5 : 3.6, i % 2 ? '#FFE680' : '#FFFFFF')).join('');
       case 'whiskers':
-        return `<circle cx="150" cy="153" r="5" fill="#FF8FB1"/>` +
-          [[-1, 152], [-1, 160], [1, 152], [1, 160]].map(([s, y]) =>
-            `<path d="M${150 + s * 22} ${y} L${150 + s * 52} ${y + (y - 156) * 1.5}" stroke="${LINE}" stroke-width="2.5" stroke-linecap="round"/>`).join('');
+        return `<ellipse cx="150" cy="111" rx="4" ry="3" fill="#FF8FB1"/>` +
+          [[-1, 112], [-1, 118], [1, 112], [1, 118]].map(([s, y]) => Line(`M${150 + s * 16} ${y} L${150 + s * 38} ${y + (y - 115) * 1.6}`, '#4A2E3A', 1.4)).join('');
       default: return '';
     }
   }
 
-  function mouth(lips) {
-    if (!lips || !lips.color) {
-      return `<path d="M135 166 Q150 180 165 166" stroke="#8A3B3B" stroke-width="4" stroke-linecap="round" fill="none"/>`;
-    }
-    const c = fillOf(lips.color);
-    return path('M133 164 Q141 160 150 165 Q159 160 167 164 Q160 184 150 184 Q140 184 133 164 Z', c) +
-      (['gold', 'rainbow'].includes(lips.color) ? path('M133 164 Q141 160 150 165 Q159 160 167 164 Q160 184 150 184 Q140 184 133 164 Z', PATTERN.glitter) : '') +
-      `<path d="M136 167 Q150 174 164 167" stroke="rgba(90,30,50,.45)" stroke-width="2" fill="none"/>` +
-      `<ellipse cx="144" cy="176" rx="4" ry="2" fill="${SHINE}"/>`;
+  function mouth(lips, skin) {
+    const upper = 'M139 122 Q144 118 150 121 Q156 118 161 122 Q155 125 150 125 Q145 125 139 122 Z';
+    const lower = 'M140 123 Q150 134 160 123 Q150 127 140 123 Z';
+    const painted = lips && lips.color;
+    const c = painted ? fillOf(lips.color) : '#D9787A';
+    return `<g${painted ? '' : ' opacity=".7"'}>` + P(upper, c, edge(c), 1) + P(lower, c, edge(c), 1) + '</g>' +
+      (painted && ['gold', 'rainbow'].includes(lips.color) ? P(lower, PATTERN.glitter, null) : '') +
+      Line('M139 122 Q150 126 161 122', 'rgba(90,20,40,.55)', 1.2) + `<ellipse cx="146" cy="128" rx="3" ry="1.4" fill="${SHINE}"/>`;
   }
 
   // ---------- Clothes ----------
-  const NECKLINE = skin => path('M133 202 Q150 222 167 202 Z', skin);
+  const SLEEVE_END = { tee: 0.3, startee: 0.3, hearttee: 0.3, crop: 0.26, long: 0.97, hoodie: 0.97, ruffle: 0.95 };
 
-  function sleeves(style, fill) {
-    const end = { tee: 0.36, startee: 0.36, hearttee: 0.36, crop: 0.3, long: 0.88, hoodie: 0.9 }[style];
+  function sleeve(item, fill, p) {
+    const end = SLEEVE_END[item.style];
     if (!end) return '';
-    return line([104, 218], lerp(ARM_L, end), fill, 30) + line([196, 218], lerp(ARM_R, end), fill, 30) +
-      (end > 0.8 ? line(lerp(ARM_L, end - 0.02), lerp(ARM_L, end), SHADE, 30) + line(lerp(ARM_R, end - 0.02), lerp(ARM_R, end), SHADE, 30) : '');
+    const extra = item.style === 'hoodie' ? 10 : item.style === 'ruffle' ? 9 : 6;
+    let s = withPattern(tube(ARM, ARM_W, 0, end, extra, false), fill, p);
+    if (end > 0.9) s += P(tube(ARM, ARM_W, end - 0.06, end, extra + 1, false), item.style === 'ruffle' ? '#fff' : SHADE, edge(fill), 1.2);
+    return s + Line('M100 214 Q96 250 90 270', SHADE, 3);
   }
 
-  function top(item, skin) {
+  const TOP_BODY = {
+    tank: 'M108 186 L118 178 L126 178 Q150 210 174 178 L182 178 L192 186 Q200 214 202 222 Q196 254 178 300 L180 330 L120 330 L122 300 Q104 254 98 222 Q100 214 108 186 Z',
+    crop: 'M106 180 Q124 172 140 170 Q150 190 160 170 Q176 172 194 180 Q204 186 204 198 L202 214 Q198 240 188 268 L112 268 Q102 240 98 214 L96 198 Q96 186 106 180 Z',
+    hoodie: 'M104 180 Q124 172 140 170 Q150 186 160 170 Q176 172 196 180 Q206 186 206 198 L204 216 Q198 256 184 300 L188 340 L112 340 L116 300 Q102 256 96 216 L94 198 Q94 186 104 180 Z',
+    base: 'M104 181 Q124 172 140 170 Q150 190 160 170 Q176 172 196 181 Q204 186 204 198 L202 214 Q196 252 178 300 L180 330 L120 330 L122 300 Q104 252 98 214 L96 198 Q96 186 104 181 Z',
+  };
+
+  function topLayer(item) {
     const fill = fillOf(item.color);
     const p = item.pattern;
-    let s = sleeves(item.style, fill);
+    const ink = edge(fill);
+    let s = both(sleeve(item, fill, p));
+    s += withPattern(TOP_BODY[item.style] || TOP_BODY.base, fill, p);
+    s += Line('M126 230 Q138 240 146 236', SHADE, 2.5) + Line('M174 230 Q162 240 154 236', SHADE, 2.5);
     switch (item.style) {
-      case 'tank':
-        s += withPattern('M104 220 L116 204 L126 204 Q150 230 174 204 L184 204 L196 220 L200 306 L100 306 Z', fill, p);
-        return s;
-      case 'crop':
-        s += withPattern('M96 210 Q150 196 204 210 L200 268 L100 268 Z', fill, p) + NECKLINE(skin);
-        return s;
+      case 'hoodie': {
+        const hood = 'M116 176 Q150 214 184 176 Q190 168 178 164 Q150 190 122 164 Q110 168 116 176 Z';
+        s += P(hood, fill, ink) + P(hood, SHADE, null) +
+          P('M124 270 L176 270 L182 308 L118 308 Z', SHADE, ink, 1.2) + P('M112 326 L188 326 L188 340 L112 340 Z', SHADE, null) +
+          Line('M142 196 L140 236', '#fff', 2) + Line('M158 196 L160 236', '#fff', 2);
+        break;
+      }
       case 'ruffle':
-        s += `<circle cx="102" cy="222" r="19" fill="${fill}"/><circle cx="198" cy="222" r="19" fill="${fill}"/>`;
-        s += withPattern('M96 210 Q150 196 204 210 L200 306 L100 306 Z', fill, p) + NECKLINE(skin);
-        for (let x = 128; x <= 172; x += 11) s += `<circle cx="${x}" cy="210" r="8" fill="${fill}"/><circle cx="${x}" cy="210" r="8" fill="${SHINE}"/>`;
-        return s;
-      case 'hoodie':
-        s += withPattern('M96 210 Q150 196 204 210 L200 306 L100 306 Z', fill, p);
-        s += path('M118 268 L182 268 L188 300 L112 300 Z', SHADE);
-        s += path('M108 206 Q150 234 192 206 Q196 190 180 186 L120 186 Q104 190 108 206 Z', fill) + path('M108 206 Q150 234 192 206 Q196 190 180 186 L120 186 Q104 190 108 206 Z', SHADE);
-        s += NECKLINE(skin) + line([142, 214], [140, 244], '#fff', 3) + line([158, 214], [160, 244], '#fff', 3);
-        return s;
+        s += P('M140 170 L150 196 L130 186 Z', '#fff', INK, 1.2) + P('M160 170 L150 196 L170 186 Z', '#fff', INK, 1.2) + Line('M150 196 L150 328', ink, 1.2);
+        for (let y = 204; y < 300; y += 22) s += `<circle cx="150" cy="${y}" r="2.6" fill="#fff" stroke="${INK}" stroke-width=".8"/>`;
+        break;
+      case 'tank':
+        s += Line('M126 178 Q150 210 174 178', ink, 2);
+        break;
       default:
-        s += withPattern('M96 210 Q150 196 204 210 L200 306 L100 306 Z', fill, p) + NECKLINE(skin);
-        if (item.print === 'star') s += star(150, 256, 22, '#FFD93D');
-        if (item.print === 'heart') s += heart(150, 254, 18, '#FF4F8B');
-        if (item.style === 'long') s += path('M100 296 L200 296 L200 306 L100 306 Z', SHADE);
-        return s;
+        s += Line('M140 171 Q150 192 160 171', ink, 2.5);
+        if (item.print === 'star') s += star(150, 240, 18, '#FFD93D', INK);
+        if (item.print === 'heart') s += heart(150, 238, 15, '#FF4F8B', INK);
     }
+    return s;
   }
 
-  function dress(item, skin) {
+  const BODICE = 'M108 192 Q128 182 150 194 Q172 182 192 192 Q200 236 178 296 L122 296 Q100 236 108 192 Z';
+
+  function dressLayer(item) {
     const fill = fillOf(item.color);
     const p = item.pattern;
+    const ink = edge(fill);
     let s = '';
     switch (item.style) {
       case 'gown': {
-        const skirt = 'M110 276 L190 276 Q246 360 262 428 Q150 448 38 428 Q54 360 110 276 Z';
-        s += withPattern(skirt, fill, p);
-        s += path('M150 290 Q140 360 120 438', 'none', `stroke="${SHADE}" stroke-width="4"`) + path('M150 290 Q160 360 180 438', 'none', `stroke="${SHADE}" stroke-width="4"`);
-        s += `<circle cx="101" cy="222" r="19" fill="${fill}"/><circle cx="199" cy="222" r="19" fill="${fill}"/>`;
-        s += withPattern('M100 210 Q150 197 200 210 L192 282 L108 282 Z', fill, p) + NECKLINE(skin);
-        s += path('M106 274 L194 274 L192 290 L108 290 Z', SHINE);
+        s += withPattern('M122 290 L178 290 Q206 400 236 520 Q256 610 270 702 Q232 722 196 712 Q174 724 150 714 Q126 724 104 712 Q68 722 30 702 Q44 610 64 520 Q94 400 122 290 Z', fill, p, ink);
+        for (const d of ['M150 300 Q146 500 150 712', 'M138 300 Q112 500 100 708', 'M162 300 Q188 500 200 708', 'M128 300 Q80 520 62 700', 'M172 300 Q220 520 238 700'])
+          s += Line(d, SHADE, 3.5);
+        s += P('M30 702 Q68 722 104 712 Q126 724 150 714 Q174 724 196 712 Q232 722 270 702 L268 690 Q150 712 32 690 Z', SHINE, null);
+        s += both(`<ellipse cx="100" cy="200" rx="17" ry="14" fill="${fill}" stroke="${ink}" stroke-width="1.6"/><ellipse cx="96" cy="196" rx="7" ry="5" fill="${SHINE}"/>`);
+        s += withPattern(BODICE, fill, p, ink) + Line('M150 194 L150 294', SHADE, 2);
+        s += P('M120 284 L180 284 L178 298 L122 298 Z', SHINE, ink, 1) + heart(150, 290, 6, '#fff', INK);
         return s;
       }
       case 'sundress':
-        return withPattern('M104 220 L116 204 L126 204 Q150 230 174 204 L184 204 L196 220 L196 282 Q236 330 244 372 Q150 390 56 372 Q64 330 104 282 Z', fill, p) +
-          path('M104 278 L196 278 L196 290 L104 290 Z', SHADE);
+        s += withPattern('M108 186 L118 178 L126 178 Q150 208 174 178 L182 178 L192 186 Q200 236 178 296 Q204 380 224 466 Q188 482 150 474 Q112 482 76 466 Q96 380 122 296 Q100 236 108 186 Z', fill, p, ink);
+        for (const d of ['M138 300 Q122 390 112 472', 'M162 300 Q178 390 188 472', 'M150 300 L150 474']) s += Line(d, SHADE, 3);
+        return s + P('M120 288 L180 288 L178 300 L122 300 Z', SHADE, null) + Line('M126 178 Q150 208 174 178', ink, 2);
       case 'tutu': {
-        s += path('M100 284 L200 284 L248 346 L52 346 Z', fill);
-        for (let x = 60; x <= 240; x += 20) s += `<circle cx="${x}" cy="346" r="13" fill="${fill}"/>`;
-        s += path('M100 284 L200 284 L248 346 L52 346 Z', SHINE) + (p ? path('M100 284 L200 284 L248 346 L52 346 Z', PATTERN[p]) : '');
-        s += withPattern('M100 210 Q150 197 200 210 L196 292 L104 292 Z', fill, p) + NECKLINE(skin);
-        s += heart(150, 288, 9, '#fff');
-        return s;
+        const tut = 'M120 290 L180 290 Q214 336 238 408 Q150 428 62 408 Q86 336 120 290 Z';
+        s += P(tut, fill, ink);
+        for (let x = 70; x <= 230; x += 16) s += `<circle cx="${x}" cy="${f1(410 + Math.sin(x) * 3)}" r="10" fill="${fill}" stroke="${ink}" stroke-width="1.2"/>`;
+        s += P(tut, SHINE, null) + P(tut, PATTERN.glitter, null) + (p ? P(tut, PATTERN[p], null) : '');
+        for (const d of ['M136 296 Q118 350 100 404', 'M164 296 Q182 350 200 404']) s += Line(d, SHADE, 3);
+        s += withPattern(BODICE, fill, p, ink) + Line('M118 192 Q114 176 122 170', ink, 3) + Line('M182 192 Q186 176 178 170', ink, 3);
+        return s + star(150, 292, 8, '#FFE680', INK);
       }
     }
     return s;
   }
 
-  function bottom(item) {
+  function bottomLayer(item) {
     const fill = fillOf(item.color);
     const p = item.pattern;
-    const hip = 'M102 294 L198 294 L198 326 L102 326 Z';
+    const ink = edge(fill);
+    const hip = 'M120 292 L180 292 Q186 322 190 354 L110 354 Q114 322 120 292 Z';
+    const band = P('M120 292 L180 292 L181 302 L119 302 Z', SHADE, ink, 1);
     switch (item.style) {
-      case 'pants':
-      case 'leggings': {
-        const w = item.style === 'pants' ? 34 : 28;
-        return withPattern(hip, fill, p) + line(LEG_L[0], [130, 410], fill, w) + line(LEG_R[0], [170, 410], fill, w) +
-          (p ? line(LEG_L[0], [130, 410], PATTERN[p], w) + line(LEG_R[0], [170, 410], PATTERN[p], w) : '') +
-          line([150, 300], [150, 320], SHADE, 3);
+      case 'pants': case 'leggings': {
+        const pants = item.style === 'pants';
+        const leg = tube(LEG, LEG_W, 0, pants ? 0.97 : 0.99, pants ? 8 : 2, false);
+        return both(withPattern(leg, fill, p, ink) + Line('M134 420 Q136 520 138 660', SHADE, 3)) +
+          withPattern(hip, fill, p, ink) + band + Line('M150 302 L150 352', ink, 1.4) +
+          (pants ? both(Line('M124 310 Q132 318 140 312', ink, 1.2)) : '');
       }
-      case 'shorts':
-        return withPattern(hip, fill, p) + line(LEG_L[0], [131, 340], fill, 38, 'butt') + line(LEG_R[0], [169, 340], fill, 38, 'butt') +
-          (p ? line(LEG_L[0], [131, 340], PATTERN[p], 38, 'butt') + line(LEG_R[0], [169, 340], PATTERN[p], 38, 'butt') : '');
-      case 'skirt':
-        return withPattern('M102 294 L198 294 L228 370 Q150 382 72 370 Z', fill, p) + path('M102 294 L198 294 L198 304 L102 304 Z', SHADE);
+      case 'shorts': {
+        const leg = tube(LEG, LEG_W, 0, 0.22, 10, false);
+        return both(withPattern(leg, fill, p, ink) + P(tube(LEG, LEG_W, 0.18, 0.22, 11, false), SHADE, null)) +
+          withPattern(hip, fill, p, ink) + band + Line('M150 302 L150 352', ink, 1.4);
+      }
+      case 'skirt': {
+        let s = withPattern('M120 290 L180 290 Q196 350 210 424 Q150 436 90 424 Q104 350 120 290 Z', fill, p, ink);
+        for (const d of ['M132 300 L116 428', 'M150 300 L150 432', 'M168 300 L184 428']) s += Line(d, SHADE, 3);
+        return s + band;
+      }
       case 'tutu': {
-        let s = path('M102 294 L198 294 L238 348 L62 348 Z', fill);
-        for (let x = 70; x <= 230; x += 20) s += `<circle cx="${x}" cy="348" r="12" fill="${fill}"/>`;
-        return s + path('M102 294 L198 294 L238 348 L62 348 Z', PATTERN.glitter);
+        const tut = 'M120 290 L180 290 Q206 330 226 392 Q150 410 74 392 Q94 330 120 290 Z';
+        let s = P(tut, fill, ink);
+        for (let x = 82; x <= 218; x += 15) s += `<circle cx="${x}" cy="${f1(394 + Math.sin(x) * 3)}" r="9" fill="${fill}" stroke="${ink}" stroke-width="1.2"/>`;
+        return s + P(tut, SHINE, null) + P(tut, PATTERN.glitter, null) + band;
       }
     }
     return '';
   }
 
-  function shoe(item, skin) {
-    const fill = fillOf(item.color);
-    const x = 124, y = 424;
+  // Shoes that cover the whole foot, so no bare foot is drawn underneath.
+  const CLOSED_SHOES = ['boots', 'rainboots', 'skates', 'sneakers', 'bunny', 'glass'];
+
+  function shoeLayer(item, skin) {
+    const glass = item.style === 'glass';
+    const fill = glass ? 'rgba(200,240,255,.8)' : fillOf(item.color);
+    const ink = glass ? '#7FB8D8' : edge(fill);
+    const foot = 'M128 680 Q124 702 128 722 Q138 734 148 722 Q152 702 148 680 Z';
+    const bare = P(FOOT, skin, darken(skin, 0.68));
+    let s = '';
     switch (item.style) {
       case 'sneakers':
-        return `<ellipse cx="${x}" cy="${y}" rx="23" ry="13" fill="${fill}"/>` +
-          (item.color === 'rainbow' ? `<ellipse cx="${x}" cy="${y}" rx="23" ry="13" fill="${PATTERN.glitter}"/>` : '') +
-          `<path d="M101 428 Q124 442 147 428 L147 433 Q124 446 101 433 Z" fill="#fff" stroke="rgba(0,0,0,.12)"/>` +
-          line([118, 416], [130, 416], LINE, 2) + line([118, 421], [130, 421], LINE, 2);
-      case 'boots': case 'rainboots':
-        return path(`M114 ${item.style === 'boots' ? 372 : 384} L146 ${item.style === 'boots' ? 372 : 384} L146 424 L114 424 Z`, fill) +
-          `<ellipse cx="${x - 2}" cy="${y}" rx="23" ry="12" fill="${fill}"/>` +
-          path(`M114 ${item.style === 'boots' ? 372 : 384} L146 ${item.style === 'boots' ? 372 : 384} L146 ${item.style === 'boots' ? 382 : 392} L114 ${item.style === 'boots' ? 382 : 392} Z`, SHADE) +
-          (item.style === 'rainboots' ? `<ellipse cx="122" cy="400" rx="4" ry="10" fill="${SHINE}"/>` : '');
+        s = P(foot, fill, ink) + (item.color === 'rainbow' ? P(foot, PATTERN.glitter, null) : '') +
+          P('M127 712 Q138 728 149 712 L149 718 Q138 736 127 718 Z', '#fff', ink, 1.2) +
+          Line('M133 690 L143 690', ink, 1.4) + Line('M133 697 L143 697', ink, 1.4) + Line('M133 704 L143 704', ink, 1.4);
+        break;
+      case 'skates':
+        s = P(tube(LEG, LEG_W, 0.9, 1, 8, false), fill, ink) + P(foot, fill, ink) +
+          P('M125 714 L151 714 L151 724 L125 724 Z', '#B9B9C9', INK, 1.2) +
+          `<circle cx="131" cy="730" r="5" fill="#FF6FB5" stroke="${INK}" stroke-width="1"/><circle cx="145" cy="730" r="5" fill="#FF6FB5" stroke="${INK}" stroke-width="1"/>` +
+          Line('M132 676 L144 676', ink, 1.4) + Line('M132 684 L144 684', ink, 1.4);
+        break;
+      case 'boots': case 'rainboots': {
+        const top = item.style === 'boots' ? 0.72 : 0.8;
+        s = P(tube(LEG, LEG_W, top, 1, 6, false), fill, ink) + P(foot, fill, ink) +
+          P(tube(LEG, LEG_W, top, top + 0.025, 7, false), SHADE, null) +
+          (item.style === 'rainboots' ? Line('M132 650 L132 690', SHINE, 4) : Line('M138 600 L139 690', SHADE, 2));
+        break;
+      }
       case 'sandals':
-        return `<ellipse cx="${x}" cy="${y}" rx="21" ry="11" fill="${skin}"/>` +
-          `<ellipse cx="${x}" cy="${y + 7}" rx="23" ry="6" fill="${fill}"/>` +
-          line([108, 418], [140, 426], fill, 5) + line([140, 418], [108, 426], fill, 5);
+        s = bare + P('M126 718 Q138 732 150 718 L150 724 Q138 738 126 724 Z', fill, ink) +
+          Line('M130 694 L146 704', fill, 3) + Line('M146 694 L130 704', fill, 3) + Line('M131 686 L145 686', fill, 3);
+        break;
       case 'flats':
-        return `<ellipse cx="${x}" cy="${y}" rx="21" ry="11" fill="${fill}"/>` +
-          `<ellipse cx="${x}" cy="${y - 4}" rx="11" ry="5" fill="${skin}"/>` + `<circle cx="${x}" cy="${y - 8}" r="4" fill="#fff"/>`;
-      case 'heels':
-        return path(`M136 424 L142 444 L148 444 L146 424 Z`, fill) +
-          `<ellipse cx="${x}" cy="${y}" rx="21" ry="11" fill="${fill}"/><ellipse cx="${x}" cy="${y}" rx="21" ry="11" fill="${PATTERN.glitter}"/>` +
-          `<ellipse cx="${x}" cy="${y - 4}" rx="10" ry="5" fill="${skin}"/>`;
+        s = bare + P('M129 700 Q126 712 130 722 Q138 732 146 722 Q150 712 147 700 Q138 708 129 700 Z', fill, ink) + `<circle cx="138" cy="706" r="2.6" fill="#fff"/>`;
+        break;
+      case 'heels': {
+        const d = 'M129 698 Q126 712 131 724 Q138 732 145 724 Q150 712 147 698 Q138 704 129 698 Z';
+        s = bare + P(d, fill, ink) + P(d, PATTERN.glitter, null) + Line('M131 690 L145 690', fill, 3);
+        break;
+      }
       case 'glass':
-        return `<ellipse cx="${x}" cy="${y}" rx="22" ry="12" fill="rgba(190,235,255,.85)" stroke="#fff" stroke-width="2"/>` +
-          `<ellipse cx="${x}" cy="${y}" rx="22" ry="12" fill="${PATTERN.glitter}"/>` + star(x - 8, y - 4, 4, '#fff');
+        s = bare + P(foot, fill, ink) + P(foot, PATTERN.glitter, null) + star(134, 704, 3.5, '#fff');
+        break;
       case 'bunny':
-        return `<ellipse cx="${x - 8}" cy="${y - 18}" rx="5" ry="13" fill="#fff" stroke="#FFC2E2" stroke-width="2"/><ellipse cx="${x + 6}" cy="${y - 18}" rx="5" ry="13" fill="#fff" stroke="#FFC2E2" stroke-width="2"/>` +
-          `<ellipse cx="${x}" cy="${y}" rx="24" ry="14" fill="#fff" stroke="rgba(0,0,0,.08)"/>` +
-          `<circle cx="${x - 7}" cy="${y - 3}" r="2.5" fill="${LINE}"/><circle cx="${x + 7}" cy="${y - 3}" r="2.5" fill="${LINE}"/><circle cx="${x}" cy="${y + 3}" r="3" fill="#FF8FB1"/>`;
+        s = `<ellipse cx="132" cy="676" rx="5" ry="14" fill="#fff" stroke="${INK}" stroke-width="1.2"/><ellipse cx="144" cy="676" rx="5" ry="14" fill="#fff" stroke="${INK}" stroke-width="1.2"/>` +
+          `<ellipse cx="132" cy="676" rx="2" ry="9" fill="#FFC2E2"/><ellipse cx="144" cy="676" rx="2" ry="9" fill="#FFC2E2"/>` +
+          `<ellipse cx="138" cy="708" rx="18" ry="24" fill="#fff" stroke="${INK}" stroke-width="1.4"/>` +
+          `<circle cx="132" cy="704" r="2" fill="#2A1F2D"/><circle cx="144" cy="704" r="2" fill="#2A1F2D"/><circle cx="138" cy="712" r="2.5" fill="#FF8FB1"/>`;
+        break;
     }
-    return '';
+    return both(s);
   }
 
-  function nails(item) {
+  function nailLayer(item) {
     if (!item || !item.color) return '';
     const fill = fillOf(item.color);
-    const set = ([hx, hy]) => [[-7, 9], [0, 11.5], [7, 9]]
-      .map(([dx, dy]) => `<ellipse cx="${hx + dx}" cy="${hy + dy}" rx="3.2" ry="4" fill="${fill}" stroke="rgba(0,0,0,.15)" stroke-width=".8"/>`).join('');
-    return set(HAND_L) + set(HAND_R);
+    return both([[79, 424], [84, 428], [89, 424]]
+      .map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="2.2" ry="3" fill="${fill}" stroke="${INK}" stroke-width=".7"/>`).join(''));
   }
 
   // ---------- Hats ----------
-  function hat(item) {
+  function hatLayer(item) {
     if (!item || item.style === 'none') return '';
     const c = fillOf(item.color);
+    const ink = edge(c);
     switch (item.style) {
-      case 'crown':
-        return path('M102 74 L108 26 L128 50 L150 14 L172 50 L192 26 L198 74 Z', 'url(#g-gold)') +
-          path('M102 74 L108 26 L128 50 L150 14 L172 50 L192 26 L198 74 Z', PATTERN.glitter) +
-          path('M102 62 L198 62 L198 76 L102 76 Z', 'rgba(150,90,0,.2)') +
-          `<circle cx="150" cy="56" r="7" fill="#FF4F8B"/><circle cx="122" cy="62" r="5" fill="#4D96FF"/><circle cx="178" cy="62" r="5" fill="#4CD07D"/>`;
-      case 'tiara':
-        return path('M108 72 Q150 44 192 72 L186 76 Q150 58 114 76 Z', 'url(#g-silver)') +
-          path('M136 56 L142 36 L150 50 L158 36 L164 56 Z', 'url(#g-silver)') + `<circle cx="150" cy="54" r="6" fill="#FF6FB5"/>` +
-          `<circle cx="126" cy="62" r="3.5" fill="#A9DBFF"/><circle cx="174" cy="62" r="3.5" fill="#A9DBFF"/>`;
-      case 'bow': {
-        const x = 194, y = 58;
-        return path(`M${x} ${y} L${x - 34} ${y - 24} Q${x - 46} ${y} ${x - 34} ${y + 24} Z`, c) +
-          path(`M${x} ${y} L${x + 34} ${y - 24} Q${x + 46} ${y} ${x + 34} ${y + 24} Z`, c) +
-          `<circle cx="${x}" cy="${y}" r="10" fill="${c}"/><circle cx="${x}" cy="${y}" r="10" fill="${SHADE}"/>`;
+      case 'crown': {
+        const d = 'M114 52 L118 14 L134 34 L150 4 L166 34 L182 14 L186 52 Z';
+        return P(d, 'url(#g-gold)', '#B07A10') + P(d, PATTERN.glitter, null) + P('M114 44 L186 44 L186 54 L114 54 Z', 'rgba(150,90,0,.25)', null) +
+          `<circle cx="150" cy="38" r="5" fill="#FF4F8B" stroke="${INK}"/><circle cx="130" cy="44" r="3.5" fill="#4D96FF"/><circle cx="170" cy="44" r="3.5" fill="#4CD07D"/>` +
+          star(150, 4, 4, '#fff');
       }
-      case 'cap':
-        return path('M80 98 Q80 34 150 34 Q220 34 220 98 Z', c) + `<ellipse cx="150" cy="96" rx="82" ry="12" fill="${c}"/>` +
-          `<ellipse cx="150" cy="96" rx="82" ry="12" fill="${SHADE}"/><circle cx="150" cy="36" r="6" fill="${c}"/>` + star(150, 66, 14, '#fff');
+      case 'tiara':
+        return P('M118 56 Q150 30 182 56 L178 60 Q150 42 122 60 Z', 'url(#g-silver)', '#8A90A8') +
+          P('M140 42 L144 24 L150 36 L156 24 L160 42 Z', 'url(#g-silver)', '#8A90A8') +
+          `<circle cx="150" cy="40" r="4.5" fill="#FF6FB5" stroke="${INK}"/><circle cx="130" cy="50" r="2.5" fill="#A9DBFF"/><circle cx="170" cy="50" r="2.5" fill="#A9DBFF"/>`;
+      case 'bow': {
+        const x = 178, y = 46;
+        return P(`M${x} ${y} L${x - 26} ${y - 18} Q${x - 34} ${y} ${x - 26} ${y + 18} Z`, c, ink) +
+          P(`M${x} ${y} L${x + 26} ${y - 18} Q${x + 34} ${y} ${x + 26} ${y + 18} Z`, c, ink) +
+          Line(`M${x - 22} ${y - 8} L${x - 8} ${y - 2}`, SHINE, 2.5) + `<circle cx="${x}" cy="${y}" r="7" fill="${c}" stroke="${ink}" stroke-width="1.4"/>`;
+      }
+      case 'cap': {
+        const brim = 'M98 72 Q150 60 202 72 Q204 84 200 86 Q150 76 100 86 Q96 84 98 72 Z';
+        return P('M104 74 Q102 22 150 22 Q198 22 196 74 Z', c, ink) + P(brim, c, ink) + P(brim, SHADE, null) +
+          Line('M150 22 L150 64', ink, 1.2) + `<circle cx="150" cy="22" r="4" fill="${c}" stroke="${ink}"/>` + star(130, 50, 7, '#fff');
+      }
       case 'sunhat':
-        return `<ellipse cx="150" cy="74" rx="116" ry="24" fill="#F2D28A"/>` + path('M92 74 Q92 22 150 22 Q208 22 208 74 Z', '#F2D28A') +
-          path('M93 60 L207 60 L208 74 L92 74 Z', '#FF6FB5') + `<circle cx="196" cy="62" r="11" fill="#FFD93D"/><circle cx="196" cy="62" r="5" fill="#FF9F43"/>`;
+        return `<ellipse cx="150" cy="62" rx="86" ry="18" fill="#F2D28A" stroke="#B8924A" stroke-width="1.6"/>` +
+          P('M108 62 Q106 14 150 14 Q194 14 192 62 Z', '#F2D28A', '#B8924A') + P('M107 48 L193 48 L192 62 L108 62 Z', '#FF6FB5', INK, 1.2) +
+          `<circle cx="182" cy="52" r="8" fill="#FFD93D" stroke="${INK}"/><circle cx="182" cy="52" r="3.5" fill="#FF9F43"/>`;
       case 'beanie':
-        return path('M76 104 Q76 26 150 26 Q224 26 224 104 Z', c) + path('M74 88 L226 88 L226 108 L74 108 Z', '#fff') +
-          path('M74 88 L226 88 L226 108 L74 108 Z', PATTERN.stripes) + `<circle cx="150" cy="24" r="16" fill="#fff"/>`;
+        return P('M102 84 Q100 14 150 14 Q200 14 198 84 Z', c, ink) + P('M100 70 L200 70 L200 88 L100 88 Z', '#fff', INK, 1.4) +
+          Line('M100 79 L200 79', c, 4) + `<circle cx="150" cy="14" r="12" fill="#fff" stroke="${INK}" stroke-width="1.4"/>`;
       case 'flowers': {
         let s = '';
         const cols = ['#FF6FB5', '#FFD93D', '#A66CFF', '#FF9F43', '#4D96FF', '#FF6FB5', '#FFD93D'];
         for (let i = 0; i < 7; i++) {
           const a = Math.PI + (i / 6) * Math.PI;
-          const x = 150 + 74 * Math.cos(a), y = 98 + 50 * Math.sin(a);
-          s += `<ellipse cx="${x + 9}" cy="${y + 6}" rx="8" ry="4" fill="#4CD07D" transform="rotate(30 ${x + 9} ${y + 6})"/>`;
+          const x = 150 + 50 * Math.cos(a), y = 80 + 40 * Math.sin(a);
+          s += `<ellipse cx="${f1(x + 7)}" cy="${f1(y + 5)}" rx="6" ry="3" fill="#4CD07D" transform="rotate(30 ${f1(x + 7)} ${f1(y + 5)})"/>`;
           for (let k = 0; k < 5; k++) {
             const b = (k / 5) * Math.PI * 2;
-            s += `<circle cx="${(x + 8 * Math.cos(b)).toFixed(1)}" cy="${(y + 8 * Math.sin(b)).toFixed(1)}" r="7" fill="${cols[i]}"/>`;
+            s += `<circle cx="${f1(x + 5.5 * Math.cos(b))}" cy="${f1(y + 5.5 * Math.sin(b))}" r="5" fill="${cols[i]}" stroke="${INK}" stroke-width=".6"/>`;
           }
-          s += `<circle cx="${x}" cy="${y}" r="5" fill="#fff"/>`;
+          s += `<circle cx="${f1(x)}" cy="${f1(y)}" r="3" fill="#fff"/>`;
         }
         return s;
       }
       case 'cat':
-        return path('M84 92 L92 26 L132 60 Z', c) + path('M216 92 L208 26 L168 60 Z', c) +
-          path('M94 78 L98 44 L120 62 Z', '#fff') + path('M206 78 L202 44 L180 62 Z', '#fff');
+        return P('M110 66 L114 18 L142 44 Z', c, ink) + P('M190 66 L186 18 L158 44 Z', c, ink) +
+          P('M117 56 L119 30 L134 44 Z', '#fff', null) + P('M183 56 L181 30 L166 44 Z', '#fff', null);
       case 'bunny':
-        return `<ellipse cx="118" cy="22" rx="15" ry="46" fill="#fff" stroke="rgba(0,0,0,.08)"/><ellipse cx="118" cy="24" rx="7" ry="34" fill="#FFC2E2"/>` +
-          `<ellipse cx="182" cy="22" rx="15" ry="46" fill="#fff" stroke="rgba(0,0,0,.08)"/><ellipse cx="182" cy="24" rx="7" ry="34" fill="#FFC2E2"/>`;
+        return `<ellipse cx="128" cy="10" rx="11" ry="34" fill="#fff" stroke="${INK}" stroke-width="1.4"/><ellipse cx="128" cy="12" rx="5" ry="25" fill="#FFC2E2"/>` +
+          `<ellipse cx="172" cy="10" rx="11" ry="34" fill="#fff" stroke="${INK}" stroke-width="1.4"/><ellipse cx="172" cy="12" rx="5" ry="25" fill="#FFC2E2"/>`;
       case 'cone':
-        return path('M184 30 Q240 120 232 250 Q216 160 160 60 Z', 'rgba(255,255,255,.7)') +
-          path('M116 68 L150 -34 L184 68 Z', c) + path('M116 68 L150 -34 L184 68 Z', PATTERN.glitter) +
-          path('M112 60 L188 60 L188 74 L112 74 Z', 'url(#g-gold)') + star(150, -34, 10, '#FFD93D');
+        return P('M174 20 Q222 100 226 250 Q206 160 156 48 Z', 'rgba(255,255,255,.75)', 'rgba(200,160,220,.6)') +
+          P('M122 54 L150 -50 L178 54 Z', c, ink) + P('M122 54 L150 -50 L178 54 Z', PATTERN.glitter, null) +
+          P('M118 46 L182 46 L182 58 L118 58 Z', 'url(#g-gold)', '#B07A10', 1.2) + star(150, -50, 8, '#FFD93D', INK);
       case 'unicorn': {
-        let s = path('M136 66 L150 -4 L164 66 Z', 'url(#g-gold)');
-        for (let y = 10; y < 62; y += 12) s += line([150 - (66 - y) * 0.2, y + 6], [150 + (66 - y) * 0.2, y], 'rgba(150,90,0,.35)', 2.5);
-        s += `<circle cx="120" cy="70" r="9" fill="#FF6FB5"/><circle cx="180" cy="70" r="9" fill="#A66CFF"/><circle cx="134" cy="62" r="6" fill="#FFD93D"/><circle cx="166" cy="62" r="6" fill="#4D96FF"/>`;
-        return s;
+        let s = P('M140 52 L150 -6 L160 52 Z', 'url(#g-gold)', '#B07A10');
+        for (let y = 6; y < 50; y += 10) s += Line(`M${f1(150 - (54 - y) * 0.18)} ${y + 5} L${f1(150 + (54 - y) * 0.18)} ${y}`, 'rgba(150,90,0,.45)', 1.6);
+        return s + [[124, 56, '#FF6FB5'], [176, 56, '#A66CFF'], [136, 50, '#FFD93D'], [164, 50, '#4D96FF']]
+          .map(([x, y, col]) => `<circle cx="${x}" cy="${y}" r="6" fill="${col}" stroke="${INK}" stroke-width=".8"/>`).join('');
       }
     }
     return '';
@@ -381,23 +483,21 @@ const Avatar = (() => {
   function extraBack(item) {
     if (!item) return '';
     switch (item.style) {
-      case 'fairywings':
-        return `<g opacity=".85">` +
-          `<ellipse cx="78" cy="226" rx="44" ry="74" transform="rotate(-32 78 226)" fill="#C9ECFF" stroke="#fff" stroke-width="3"/>` +
-          `<ellipse cx="222" cy="226" rx="44" ry="74" transform="rotate(32 222 226)" fill="#C9ECFF" stroke="#fff" stroke-width="3"/>` +
-          `<ellipse cx="96" cy="300" rx="28" ry="44" transform="rotate(30 96 300)" fill="#E6D4FF" stroke="#fff" stroke-width="3"/>` +
-          `<ellipse cx="204" cy="300" rx="28" ry="44" transform="rotate(-30 204 300)" fill="#E6D4FF" stroke="#fff" stroke-width="3"/>` +
-          `<ellipse cx="78" cy="226" rx="44" ry="74" transform="rotate(-32 78 226)" fill="url(#p-glitter)"/>` +
-          `<ellipse cx="222" cy="226" rx="44" ry="74" transform="rotate(32 222 226)" fill="url(#p-glitter)"/></g>`;
+      case 'fairywings': {
+        const up = '<ellipse cx="96" cy="230" rx="36" ry="74" transform="rotate(-34 96 230)"/>';
+        const low = '<ellipse cx="110" cy="320" rx="22" ry="44" transform="rotate(28 110 320)"/>';
+        return both(`<g fill="#C9ECFF" stroke="#8CC8F0" stroke-width="2" opacity=".9">${up}</g><g fill="#E6D4FF" stroke="#B9A0EE" stroke-width="2" opacity=".9">${low}</g>` +
+          `<g fill="url(#p-glitter)">${up}${low}</g>` + Line('M140 220 Q100 220 72 170', 'rgba(140,200,240,.8)', 1.5));
+      }
       case 'butterfly':
-        return `<path d="M150 240 C90 140 20 160 40 230 C50 270 100 270 150 250 Z" fill="#FF6FB5"/>` +
-          `<path d="M150 240 C210 140 280 160 260 230 C250 270 200 270 150 250 Z" fill="#FF6FB5"/>` +
-          `<path d="M150 252 C100 270 60 320 90 340 C120 356 140 300 150 262 Z" fill="#A66CFF"/>` +
-          `<path d="M150 252 C200 270 240 320 210 340 C180 356 160 300 150 262 Z" fill="#A66CFF"/>` +
-          `<circle cx="72" cy="206" r="13" fill="#FFD93D"/><circle cx="228" cy="206" r="13" fill="#FFD93D"/>` +
-          `<circle cx="96" cy="318" r="8" fill="#fff"/><circle cx="204" cy="318" r="8" fill="#fff"/>`;
-      case 'cape':
-        return path('M98 212 L202 212 L252 440 Q150 456 48 440 Z', fillOf(item.color)) + path('M120 220 L100 440', 'none', `stroke="${SHADE}" stroke-width="4"`) + path('M180 220 L200 440', 'none', `stroke="${SHADE}" stroke-width="4"`);
+        return both('<path d="M150 230 C110 120 30 130 44 210 C52 262 104 262 150 246 Z" fill="#FF6FB5" stroke="#B83D7E" stroke-width="2"/>' +
+          '<path d="M150 250 C110 268 70 330 98 350 C126 366 144 300 150 262 Z" fill="#A66CFF" stroke="#6A3FC0" stroke-width="2"/>' +
+          '<circle cx="76" cy="196" r="12" fill="#FFD93D" stroke="#B83D7E"/><circle cx="104" cy="330" r="7" fill="#fff"/><circle cx="100" cy="226" r="6" fill="#fff"/>');
+      case 'cape': {
+        const c = fillOf(item.color);
+        return P('M104 182 L196 182 Q236 420 262 700 Q150 726 38 700 Q64 420 104 182 Z', c, edge(c)) +
+          Line('M124 200 Q100 450 86 700', SHADE, 4) + Line('M176 200 Q200 450 214 700', SHADE, 4);
+      }
     }
     return '';
   }
@@ -405,23 +505,24 @@ const Avatar = (() => {
   function extraChest(item) {
     if (!item) return '';
     switch (item.style) {
-      case 'necklace':
-        return `<path d="M126 206 Q150 238 174 206" stroke="#E6B422" stroke-width="2.5" fill="none"/>` + heart(150, 236, 9, '#FF4F8B');
+      case 'necklace': return Line('M138 168 Q150 196 162 168', '#E6B422', 1.6) + heart(150, 194, 6, '#FF4F8B', INK);
       case 'pearls': {
         let s = '';
         for (let i = 0; i <= 10; i++) {
-          const t = i / 10, x = 124 + 52 * t, y = 206 + 26 * Math.sin(Math.PI * t);
-          s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" fill="#FFF8F0" stroke="rgba(0,0,0,.12)"/>`;
+          const t = i / 10;
+          s += `<circle cx="${f1(134 + 32 * t)}" cy="${f1(168 + 22 * Math.sin(Math.PI * t))}" r="3" fill="#FFF8F0" stroke="rgba(120,90,80,.5)" stroke-width=".8"/>`;
         }
         return s;
       }
       case 'cape':
-        return [100, 112, 124, 176, 188, 200].map(x => `<circle cx="${x}" cy="${212 + (x < 150 ? (x - 100) * 0.1 : (200 - x) * 0.1)}" r="9" fill="#fff"/>`).join('') +
-          `<circle cx="112" cy="214" r="2" fill="${LINE}"/><circle cx="188" cy="214" r="2" fill="${LINE}"/>`;
-      case 'scarf':
-        return path('M116 194 Q150 214 184 194 L188 214 Q150 236 112 214 Z', fillOf(item.color)) +
-          path('M164 214 L180 214 L184 270 L166 270 Z', fillOf(item.color)) + path('M116 194 Q150 214 184 194 L188 214 Q150 236 112 214 Z', PATTERN.stripes) +
-          path('M164 214 L180 214 L184 270 L166 270 Z', PATTERN.stripes);
+        return [104, 114, 124, 176, 186, 196].map(x => `<circle cx="${x}" cy="${f1(184 - Math.abs(150 - x) * 0.05)}" r="8" fill="#fff" stroke="${INK}" stroke-width="1"/>`).join('') +
+          `<circle cx="114" cy="186" r="1.6" fill="#2A1F2D"/><circle cx="186" cy="186" r="1.6" fill="#2A1F2D"/>`;
+      case 'scarf': {
+        const c = fillOf(item.color), ink = edge(c);
+        const wrap = 'M130 160 Q150 176 170 160 L176 180 Q150 200 124 180 Z', tail = 'M156 186 L172 184 L176 260 L160 262 Z';
+        return P(wrap, c, ink) + P(wrap, PATTERN.stripes, null) + P(tail, c, ink) + P(tail, PATTERN.stripes, null) +
+          Line('M160 262 L162 272', ink, 1.4) + Line('M168 262 L170 272', ink, 1.4) + Line('M175 260 L177 270', ink, 1.4);
+      }
     }
     return '';
   }
@@ -430,14 +531,15 @@ const Avatar = (() => {
     if (!item) return '';
     switch (item.style) {
       case 'glasses':
-        return `<circle cx="122" cy="138" r="19" fill="rgba(255,255,255,.18)" stroke="#5A3A4A" stroke-width="4"/>` +
-          `<circle cx="178" cy="138" r="19" fill="rgba(255,255,255,.18)" stroke="#5A3A4A" stroke-width="4"/>` + line([141, 136], [159, 136], '#5A3A4A', 4);
+        return `<circle cx="132" cy="93" r="14" fill="rgba(255,255,255,.18)" stroke="#5A3A4A" stroke-width="2.6"/>` +
+          `<circle cx="168" cy="93" r="14" fill="rgba(255,255,255,.18)" stroke="#5A3A4A" stroke-width="2.6"/>` + Line('M146 91 L154 91', '#5A3A4A', 2.6) +
+          Line('M118 90 L108 88', '#5A3A4A', 2.4) + Line('M182 90 L192 88', '#5A3A4A', 2.4);
       case 'sunglasses':
-        return path('M100 126 L144 126 Q146 154 122 156 Q100 154 100 126 Z', '#2A1F2D') + path('M156 126 L200 126 Q200 154 178 156 Q154 154 156 126 Z', '#2A1F2D') +
-          line([144, 130], [156, 130], '#2A1F2D', 4) + line([108, 132], [120, 132], 'rgba(255,255,255,.5)', 3) + line([164, 132], [176, 132], 'rgba(255,255,255,.5)', 3);
+        return P('M116 84 L146 84 Q147 104 131 105 Q115 104 116 84 Z', '#2A1F2D', null) + P('M154 84 L184 84 Q185 104 169 105 Q153 104 154 84 Z', '#2A1F2D', null) +
+          Line('M146 86 L154 86', '#2A1F2D', 2.6) + Line('M121 89 L131 89', 'rgba(255,255,255,.55)', 2) + Line('M159 89 L169 89', 'rgba(255,255,255,.55)', 2);
       case 'heartglasses':
-        return heart(122, 140, 20, 'rgba(255,79,139,.9)') + heart(178, 140, 20, 'rgba(255,79,139,.9)') + line([140, 132], [160, 132], '#FF4F8B', 4) +
-          `<ellipse cx="114" cy="134" rx="5" ry="3" fill="${SHINE}"/><ellipse cx="170" cy="134" rx="5" ry="3" fill="${SHINE}"/>`;
+        return heart(132, 95, 14, 'rgba(255,79,139,.92)', '#B0245E') + heart(168, 95, 14, 'rgba(255,79,139,.92)', '#B0245E') + Line('M144 88 L156 88', '#B0245E', 2.4) +
+          `<ellipse cx="126" cy="90" rx="3.5" ry="2" fill="${SHINE}"/><ellipse cx="162" cy="90" rx="3.5" ry="2" fill="${SHINE}"/>`;
     }
     return '';
   }
@@ -446,11 +548,13 @@ const Avatar = (() => {
     if (!item) return '';
     switch (item.style) {
       case 'wand':
-        return line([222, 324], [254, 252], '#fff', 6) + line([222, 324], [254, 252], 'rgba(0,0,0,.12)', 2) + star(256, 246, 18, 'url(#g-gold)') +
-          star(276, 226, 5, '#FFE680') + star(238, 224, 4, '#fff') + star(282, 258, 4, '#FF6FB5');
-      case 'purse':
-        return `<path d="M70 318 Q60 290 84 300" stroke="${fillOf(item.color)}" stroke-width="4" fill="none"/>` +
-          path('M50 330 L96 330 L100 366 Q73 374 46 366 Z', fillOf(item.color)) + path('M50 330 L96 330 L97 340 L49 340 Z', SHADE) + heart(73, 352, 7, '#fff');
+        return mirror(Line('M84 410 L64 330', '#fff', 4) + Line('M84 410 L64 330', 'rgba(0,0,0,.2)', 1) + star(62, 322, 14, 'url(#g-gold)', '#B07A10') +
+          star(44, 300, 4, '#FFE680') + star(80, 300, 3, '#fff') + star(40, 336, 3, '#FF6FB5'));
+      case 'purse': {
+        const c = fillOf(item.color), ink = edge(c);
+        return Line('M76 400 Q62 380 88 396', ink, 2) +
+          P('M56 410 L96 410 L100 446 Q76 454 52 446 Z', c, ink) + P('M56 410 L96 410 L97 420 L55 420 Z', SHADE, null) + heart(76, 434, 6, '#fff');
+      }
     }
     return '';
   }
@@ -462,70 +566,115 @@ const Avatar = (() => {
     return o;
   }
 
-  function draw(look) {
+  // `only` limits drawing to some layers, so the picker can show one item by itself.
+  function draw(look, kind = 'adult', only = null) {
     const o = outfit(look);
     const skin = o.skin ? o.skin.hex : '#F8C9A2';
+    const skinInk = darken(skin, 0.68);
     const hc = o.hairColor ? o.hairColor.hex : '#6B4226';
     const ec = fillOf(o.eyeColor ? o.eyeColor.color : 'brown');
-    const hairStyle = o.hair ? o.hair.style : 'short';
+    const hair = o.hair ? o.hair.style : 'short';
+    const show = cat => !only || only.includes(cat);
+    const bodyOn = show('body');
+    const headOn = show('head');
+    const hairOn = headOn || show('hair');
 
-    let s = '<g>';
-    s += extraBack(o.extra);
-    s += hairBack(hairStyle, hc);
+    let body = '';
+    if (show('extra')) body += extraBack(o.extra);
+    if (bodyOn) {
+      body += both(P(tube(LEG, LEG_W, 0, 0.995), skin, skinInk) + Line('M138 500 Q134 520 138 534', SHADE, 2));
+      if (!o.shoes || !CLOSED_SHOES.includes(o.shoes.style)) body += both(P(FOOT, skin, skinInk));
+    }
+    if (show('bottom') && !o.dress && o.bottom) body += bottomLayer(o.bottom);
+    if (show('shoes') && o.shoes) body += shoeLayer(o.shoes, skin);
+    if (bodyOn) {
+      body += P(TORSO, skin, skinInk) + P('M140 140 Q150 152 160 140 L160 156 Q150 162 140 156 Z', SHADE, null);
+      body += Line('M124 186 Q134 190 142 186', SHADE, 1.6) + Line('M176 186 Q166 190 158 186', SHADE, 1.6);
+      body += both(P(tube(ARM, ARM_W, 0, 0.995), skin, skinInk));
+    }
+    if (show('dress') && o.dress) body += dressLayer(o.dress);
+    else if (show('top') && o.top && !o.dress) body += topLayer(o.top);
+    if (show('extra')) body += extraChest(o.extra);
+    if (bodyOn || show('hands')) body += both(P(HAND, skin, skinInk) + P(THUMB, skin, skinInk));
+    if (show('nails')) body += nailLayer(o.nails);
+    if (show('extra')) body += extraHand(o.extra);
 
-    // legs and feet
-    s += line(LEG_L[0], LEG_L[1], skin, 26) + line(LEG_R[0], LEG_R[1], skin, 26);
-    if (!o.dress && o.bottom) s += bottom(o.bottom);
-    if (o.shoes) s += shoe(o.shoes, skin) + mirror(shoe(o.shoes, skin));
+    const back = hairOn ? hairBack(hair, hc) : '';
+    let head = '';
+    if (headOn) {
+      head += both(`<ellipse cx="108" cy="97" rx="6" ry="10" fill="${skin}" stroke="${skinInk}" stroke-width="1.4"/>`);
+      head += P(FACE, skin, skinInk) + P('M112 112 Q120 136 150 146 Q130 140 116 120 Z', SHADE, null);
+      if (show('face')) head += facePaint(o.face ? o.face.style : 'none');
+      head += eyes(o.eyes ? o.eyes.style : 'round', ec, skin);
+      head += Line('M150 96 Q146 106 149 112', darken(skin, 0.8), 1.6) + Line('M146 113 Q150 115 154 113', darken(skin, 0.7), 1.4);
+      head += mouth(o.lips, skin);
+    }
+    if (hairOn) head += hairFront(hair, hc);
+    if (show('extra')) head += extraFace(o.extra);
+    if (show('hat')) head += hatLayer(o.hat);
 
-    // body
-    s += `<rect x="139" y="182" width="22" height="34" rx="8" fill="${skin}"/>`;
-    s += path('M102 212 Q150 200 198 212 L194 302 L106 302 Z', skin);
-    s += line(ARM_L[0], ARM_L[1], skin, 22) + line(ARM_R[0], ARM_R[1], skin, 22);
-    if (o.dress) s += dress(o.dress, skin);
-    else if (o.top) s += top(o.top, skin);
-    s += extraChest(o.extra);
-    s += `<circle cx="${HAND_L[0]}" cy="${HAND_L[1]}" r="13" fill="${skin}"/><circle cx="${HAND_R[0]}" cy="${HAND_R[1]}" r="13" fill="${skin}"/>`;
-    s += nails(o.nails);
-    s += extraHand(o.extra);
-
-    // head
-    s += `<circle cx="78" cy="138" r="13" fill="${skin}"/><circle cx="222" cy="138" r="13" fill="${skin}"/>`;
-    s += `<circle cx="78" cy="138" r="6" fill="${SHADE}"/><circle cx="222" cy="138" r="6" fill="${SHADE}"/>`;
-    s += `<ellipse cx="150" cy="128" rx="72" ry="70" fill="${skin}"/>`;
-    s += facePaint(o.face ? o.face.style : 'none');
-    s += eyes(o.eyes ? o.eyes.style : 'round', ec, skin);
-    s += `<path d="M110 114 Q122 106 134 112" stroke="${hc}" stroke-width="4.5" stroke-linecap="round" fill="none"/>` +
-         `<path d="M166 112 Q178 106 190 114" stroke="${hc}" stroke-width="4.5" stroke-linecap="round" fill="none"/>`;
-    s += `<path d="M146 152 Q150 156 154 152" stroke="rgba(0,0,0,.22)" stroke-width="3" stroke-linecap="round" fill="none"/>`;
-    s += mouth(o.lips);
-    s += hairFront(hairStyle, hc);
-    s += extraFace(o.extra);
-    s += hat(o.hat);
-    s += '</g>';
-    return s;
+    // Grown-ups are tall dolls; kids are shorter with a bigger head. Picker pictures are drawn flat.
+    // Hair that hangs down the back goes behind the body.
+    if (kind === 'flat') return back + body + head;
+    const at = (y, scale, svg) => `<g transform="translate(150 ${y}) scale(${scale}) translate(-150 -150)">${svg}</g>`;
+    if (kind === 'kid') return at(306, 1.34, back) + `<g transform="translate(150 730) scale(.88 .72) translate(-150 -730)">${body}</g>` + at(306, 1.34, head);
+    if (kind === 'broad') return at(158, 1.18, back) + `<g transform="translate(150 0) scale(1.1 1) translate(-150 0)">${body}</g>` + at(158, 1.18, head);
+    return at(158, 1.18, back) + body + at(158, 1.18, head);
   }
 
   const VIEW = {
-    full: '18 -44 264 500',
-    head: '62 20 176 196',
-    face: '84 96 132 100',
-    hair: '40 -8 220 330',
-    top: '50 182 200 140',
-    dress: '30 186 240 264',
-    bottom: '56 284 188 166',
-    shoes: '88 376 124 76',
-    nails: '54 296 50 50',
-  };
-  const CATEGORY_VIEW = {
-    skin: 'head', eyes: 'face', eyeColor: 'face', lips: 'face', face: 'face', hair: 'hair', hairColor: 'hair',
-    hat: 'head', top: 'top', dress: 'dress', bottom: 'bottom', shoes: 'shoes', nails: 'nails', extra: 'full',
+    full: '0 -96 300 836',
+    head: '78 -10 144 170',
+    face: '110 62 80 76',
+    hair: '62 4 176 230',
+    top: '62 150 176 200',
+    dress: '20 150 260 590',
+    shortdress: '50 150 200 340',
+    bottom: '56 280 188 460',
+    shortbottom: '64 280 172 170',
+    shoes: '112 652 76 92',
+    boots: '104 560 92 184',
+    nails: '64 382 40 54',
+    wings: '20 110 260 270',
+    chest: '106 140 88 140',
+    hand: '20 290 120 170',
+    wand: '160 290 120 170',
   };
 
-  function svg(look, view = 'full', cls = '') {
-    const clip = view === 'full' ? '' : ' style="overflow:hidden"';
-    return `<svg class="${cls}" viewBox="${VIEW[view]}"${clip} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${draw(look)}</svg>`;
+  // How to show each item by itself in the picker.
+  const FACE_PARTS = ['head', 'hair'];
+  function thumbFor(item) {
+    switch (item.cat) {
+      case 'skin': return { view: 'head', only: FACE_PARTS };
+      case 'eyes': case 'eyeColor': case 'lips': return { view: 'face', only: ['head'] };
+      case 'face': return { view: 'face', only: ['head', 'face'] };
+      case 'hair': return { view: 'hair', only: FACE_PARTS };
+      case 'hairColor': return { view: 'hair', only: FACE_PARTS };
+      case 'hat': return { view: 'head', only: [...FACE_PARTS, 'hat'] };
+      case 'top': return { view: 'top', only: ['top'] };
+      case 'dress': return { view: item.style === 'gown' ? 'dress' : 'shortdress', only: ['dress'] };
+      case 'bottom': return { view: ['shorts', 'skirt', 'tutu'].includes(item.style) ? 'shortbottom' : 'bottom', only: ['bottom'] };
+      case 'shoes': return { view: ['boots', 'rainboots', 'skates'].includes(item.style) ? 'boots' : 'shoes', only: ['shoes'] };
+      case 'nails': return { view: 'nails', only: ['hands', 'nails'] };
+      case 'extra':
+        if (['glasses', 'sunglasses', 'heartglasses'].includes(item.style)) return { view: 'face', only: ['head', 'extra'] };
+        if (['fairywings', 'butterfly'].includes(item.style)) return { view: 'wings', only: ['extra'] };
+        if (['necklace', 'pearls', 'scarf'].includes(item.style)) return { view: 'chest', only: ['extra'] };
+        if (item.style === 'cape') return { view: 'dress', only: ['extra'] };
+        if (item.style === 'wand') return { view: 'wand', only: ['extra', 'hands'] };
+        if (item.style === 'purse') return { view: 'hand', only: ['extra', 'hands'] };
+        return { view: 'head', only: FACE_PARTS };
+    }
+    return { view: 'full', only: null };
   }
 
-  return { svg, draw, outfit, CATEGORY_VIEW, star, heart };
+  const svgTag = (view, inner, clip) =>
+    `<svg viewBox="${VIEW[view]}"${clip ? ' style="overflow:hidden"' : ''} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${inner}</svg>`;
+
+  return {
+    svg: (look, kind = 'adult') => svgTag('full', draw(look, kind)),
+    thumb: (look, item) => { const t = thumbFor(item); return svgTag(t.view, draw(look, 'flat', t.only), true); },
+    head: look => svgTag('head', draw(look, 'flat', ['head', 'hair', 'face', 'hat']), true),
+    outfit, star, heart,
+  };
 })();

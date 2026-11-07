@@ -124,6 +124,7 @@ addStyled('shoes', 'rainboots', 'Rain Boots', [['yellow', 0], ['green', 5]]);
 addStyled('shoes', 'sandals', 'Sandals', [['brown', 0], ['pink', 5]]);
 addStyled('shoes', 'flats', 'Ballet Shoes', [['lightpink', 0], ['red', 5]]);
 addStyled('shoes', 'heels', 'Sparkly Heels', [['gold', 20], ['silver', 20]]);
+addStyled('shoes', 'skates', 'Roller Skates', [['pink', 10], ['purple', 10], ['white', 10]]);
 add('shoes', 'shoes-glass', 'Glass Slippers', 25, { style: 'glass' });
 add('shoes', 'shoes-bunny', 'Bunny Slippers', 15, { style: 'bunny', color: 'white' });
 
@@ -151,7 +152,7 @@ const DEFAULT_CHARACTERS = [
     skin: 'skin-peach', eyes: 'eyes-lashes', eyeColor: 'eyec-blue', hair: 'hair-long', hairColor: 'hairc-blonde',
     lips: 'lips-pink', face: 'face-none', top: null, dress: 'dress-sundress-green', bottom: null,
     shoes: 'shoes-sandals-brown', nails: 'nails-pink', hat: 'hat-none', extra: 'extra-none' } },
-  { id: 'daddy', name: 'Daddy', kind: 'adult', look: {
+  { id: 'daddy', name: 'Daddy', kind: 'broad', look: {
     skin: 'skin-honey', eyes: 'eyes-round', eyeColor: 'eyec-brown', hair: 'hair-short', hairColor: 'hairc-brown',
     lips: 'lips-none', face: 'face-none', top: 'top-tee-blue', dress: null, bottom: 'bottom-pants-black',
     shoes: 'shoes-sneakers-white', nails: 'nails-none', hat: 'hat-none', extra: 'extra-glasses' } },

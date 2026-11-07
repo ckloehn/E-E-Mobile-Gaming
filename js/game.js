@@ -123,7 +123,7 @@ function renderCastle() {
   const fam = $('[data-family]');
   fam.innerHTML = state.chars.map((c, i) => `
     <button class="person ${c.kind}" data-action="dress" data-i="${i}" style="--d:${i * 0.4}s">
-      ${Avatar.svg(c.look)}
+      ${Avatar.svg(c.look, c.kind)}
       <span class="name">${escapeHtml(c.name)}</span>
     </button>`).join('');
   $('[data-egg-badge]').hidden = state.lastEgg === today();
@@ -158,7 +158,7 @@ function startDressing(i, mode = 'play') {
 
 function renderModel(pop) {
   const m = $('[data-model]');
-  m.innerHTML = Avatar.svg(ui.char.look);
+  m.innerHTML = Avatar.svg(ui.char.look, ui.char.kind);
   if (pop) { m.classList.remove('pop'); void m.offsetWidth; m.classList.add('pop'); }
 }
 
@@ -169,14 +169,13 @@ function renderTabs() {
 
 function renderItems() {
   const look = ui.char.look;
-  const view = Avatar.CATEGORY_VIEW[ui.tab];
   const list = ITEMS.filter(i => i.cat === ui.tab);
   const box = $('[data-items]');
   box.innerHTML = list.map(item => {
     const locked = !owns(item);
     const on = look[item.cat] === item.id;
     return `<button class="item ${on ? 'on' : ''} ${locked ? 'locked' : ''}" data-action="item" data-id="${item.id}" aria-label="${item.name}">
-      ${Avatar.svg(lookWith(look, item), view)}
+      ${Avatar.thumb(lookWith(look, item), item)}
       ${item.id.endsWith('-none') ? '<span class="none-mark">✕</span>' : ''}
       ${locked ? `<span class="lock">🪙${item.price}</span>` : ''}
     </button>`;
@@ -211,7 +210,7 @@ function tapItem(id) {
   wear(ui.char.look, item);
   renderModel(true);
   Sound.play('sparkle');
-  $('[data-buy-thumb]').innerHTML = Avatar.svg(ui.char.look, Avatar.CATEGORY_VIEW[item.cat]);
+  $('[data-buy-thumb]').innerHTML = Avatar.thumb(ui.char.look, item);
   $('[data-buy-name]').textContent = item.name;
   $('[data-buy-price]').textContent = item.price;
   const short = item.price - state.coins;
@@ -249,9 +248,9 @@ function done() {
   if (state.rewarded[ui.char.id] !== key) {
     state.rewarded[ui.char.id] = key;
     setCoins(state.coins + 10);
-    reward(praise, `<div class="reward-model">${Avatar.svg(ui.char.look)}</div><p class="got">+10 🪙</p>`, goHome);
+    reward(praise, `<div class="reward-model">${Avatar.svg(ui.char.look, ui.char.kind)}</div><p class="got">+10 🪙</p>`, goHome);
   } else {
-    reward(praise, `<div class="reward-model">${Avatar.svg(ui.char.look)}</div>`, goHome);
+    reward(praise, `<div class="reward-model">${Avatar.svg(ui.char.look, ui.char.kind)}</div>`, goHome);
   }
 }
 
@@ -298,7 +297,7 @@ function crackEgg() {
   const look = prize ? lookWith(state.chars[2].look, prize) : state.chars[2].look;
   $('[data-egg-prize]').innerHTML = `
     <p class="got">+25 🪙</p>
-    ${prize ? `<div class="prize-thumb">${Avatar.svg(look, Avatar.CATEGORY_VIEW[prize.cat])}</div><p class="prize-name"><span class="say">${prize.name}</span></p>` : ''}`;
+    ${prize ? `<div class="prize-thumb">${Avatar.thumb(look, prize)}</div><p class="prize-name"><span class="say">${prize.name}</span></p>` : ''}`;
   $('[data-egg-prize]').hidden = false;
   $('[data-egg-close]').hidden = false;
   $('[data-egg-title]').textContent = 'Surprise!';
@@ -314,7 +313,7 @@ function startShow() {
   $('[data-theme-big]').innerHTML = `<span class="theme-icon" aria-hidden="true">${ui.theme.icon}</span><span class="say">${ui.theme.name}</span>`;
   $('[data-pick]').innerHTML = state.chars.map((c, i) => `
     <button class="person mini ${c.kind}" data-action="model" data-i="${i}">
-      ${Avatar.svg(c.look)}<span class="name">${escapeHtml(c.name)}</span>
+      ${Avatar.svg(c.look, c.kind)}<span class="name">${escapeHtml(c.name)}</span>
     </button>`).join('');
   decorate($('#screen-show'));
   show('show');
@@ -338,7 +337,7 @@ function runway() {
   ];
   const total = stars.reduce((a, b) => a + b, 0);
 
-  $('[data-runway-model]').innerHTML = Avatar.svg(look);
+  $('[data-runway-model]').innerHTML = Avatar.svg(look, ui.char.kind);
   $('[data-runway-model]').className = 'runway-model walk';
   $('[data-judges]').innerHTML = JUDGES.map(j => `
     <div class="judge"><div class="card" data-card>${'<span class="s">★</span>'.repeat(3)}</div><span class="face" aria-hidden="true">${j.icon}</span></div>`).join('');
@@ -370,7 +369,7 @@ function openGrownups() {
   $('#set-autoread').checked = state.settings.autoRead;
   $('#set-music').checked = state.settings.music;
   $('[data-names]').innerHTML = state.chars.map((c, i) =>
-    `<label class="row"><span class="mini-face">${Avatar.svg(c.look, 'head')}</span><input type="text" id="name-${c.id}" data-name="${i}" value="${escapeHtml(c.name)}" maxlength="16"></label>`).join('');
+    `<label class="row"><span class="mini-face">${Avatar.head(c.look)}</span><input type="text" id="name-${c.id}" data-name="${i}" value="${escapeHtml(c.name)}" maxlength="16"></label>`).join('');
   $('[data-reset-confirm]').hidden = true;
   openSheet('grownups');
 }
