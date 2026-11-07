@@ -68,7 +68,7 @@ const PAINTED_CATALOG = [
 const PAINT_COLORS = [['pink', 0], ['blue', 0], ['purple', 0], ['yellow', 0], ['green', 5], ['red', 5],
   ['white', 5], ['black', 5], ['gold', 15], ['rainbow', 20]];
 const PAINT_HEX = {
-  pink: '#FF7DB8', blue: '#6AA8FF', purple: '#B07CFF', yellow: '#FFD84D', green: '#5CD68A', red: '#FF5468',
+  pink: '#FF7DB8', blue: '#6AA8FF', purple: '#B07CFF', yellow: '#FFF06A', green: '#5CD68A', red: '#FF5468',
   white: '#FFFFFF', black: '#5A5470', gold: 'gold', rainbow: 'rainbow',
 };
 
