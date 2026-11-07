@@ -24,4 +24,25 @@
 
 ## Part 2: Designing our version
 
-(to be filled in)
+**Name:** Toca Toca Egg House
+
+**Who we dress up:** Everyone, especially the family and friends. She asked for us to make the characters.
+
+**What you can change:** "Pretty much everything": clothing, hair, hair color, shirts, dresses, shoes,
+makeup, eyes, skin and nails.
+
+**First place:** A castle.
+
+**Ways to earn coins:**
+- Finishing an outfit
+- A daily gift box
+- A mini game where you win a fashion show
+- Some reward just for taking part
+
+**Look and sound:** Bright rainbow and sparkly, with music.
+
+**About the player:** 5 years old and just starting to read. The game should help her learn:
+it should be able to read words out loud when she taps a button, but not read everything automatically.
+
+**Parent note:** Photos or descriptions of the real family can come later. You can change everything about
+each character in the game anyway.

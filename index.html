@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Toca Toca Egg House</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#8E5CFF">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Egg House">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@600;800&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<!--GAME-START-->
+<!-- Shared gradients and patterns used by every character drawing -->
+<svg class="defs" width="0" height="0" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="g-rainbow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FF5E7E"/><stop offset=".2" stop-color="#FF9F43"/><stop offset=".4" stop-color="#FFD93D"/>
+      <stop offset=".6" stop-color="#4CD07D"/><stop offset=".8" stop-color="#4D96FF"/><stop offset="1" stop-color="#A66CFF"/>
+    </linearGradient>
+    <linearGradient id="g-gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFE98A"/><stop offset=".5" stop-color="#F5B921"/><stop offset="1" stop-color="#FFE07A"/>
+    </linearGradient>
+    <linearGradient id="g-silver" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/><stop offset=".5" stop-color="#C9CEDF"/><stop offset="1" stop-color="#F2F4FA"/>
+    </linearGradient>
+    <pattern id="p-dots" width="16" height="16" patternUnits="userSpaceOnUse">
+      <circle cx="8" cy="8" r="3.5" fill="rgba(255,255,255,.75)"/>
+    </pattern>
+    <pattern id="p-stripes" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(0)">
+      <rect width="14" height="6" fill="rgba(255,255,255,.55)"/>
+    </pattern>
+    <pattern id="p-glitter" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="4" cy="5" r="1.4" fill="rgba(255,255,255,.95)"/><circle cx="15" cy="9" r="1" fill="rgba(255,255,255,.8)"/>
+      <circle cx="9" cy="17" r="1.6" fill="rgba(255,255,255,.9)"/><circle cx="19" cy="19" r=".9" fill="rgba(255,255,255,.8)"/>
+    </pattern>
+  </defs>
+</svg>
+
+<div class="sky" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+
+<main id="app">
+
+  <!-- Title -->
+  <section id="screen-title" class="screen title">
+    <div class="logo">
+      <div class="logo-egg" aria-hidden="true">
+        <svg viewBox="0 0 120 150"><use href="#egg-shape"/></svg>
+      </div>
+      <h1><span>Toca Toca</span> Egg House</h1>
+    </div>
+    <button class="big-btn play" data-action="play">▶ Play</button>
+  </section>
+
+  <!-- Castle hall -->
+  <section id="screen-castle" class="screen castle" hidden>
+    <header class="bar">
+      <div class="coins" aria-label="Coins"><span class="coin-icon">🪙</span><b data-coins>0</b></div>
+      <div class="bar-right">
+        <button class="round-btn" data-action="music" aria-label="Music on or off">🎵</button>
+        <button class="round-btn grownups" data-action="grownups" aria-label="Grown-ups menu: press and hold">⚙️</button>
+      </div>
+    </header>
+    <div class="hall">
+      <svg class="hall-art" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+        <defs>
+          <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD6F0"/><stop offset="1" stop-color="#E9DAFF"/></linearGradient>
+          <linearGradient id="win" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7FD3FF"/><stop offset="1" stop-color="#C9F0FF"/></linearGradient>
+          <pattern id="floor" width="80" height="40" patternUnits="userSpaceOnUse"><rect width="80" height="40" fill="#FFF3B8"/><rect width="40" height="20" fill="#FFE07A"/><rect x="40" y="20" width="40" height="20" fill="#FFE07A"/></pattern>
+        </defs>
+        <rect width="1000" height="600" fill="url(#wall)"/>
+        <g fill="#FFFFFF" opacity=".5">
+          <rect x="0" y="0" width="1000" height="34"/>
+          <path d="M0 34 h1000 v14 h-1000z" fill="#F7B8E0"/>
+        </g>
+        <!-- windows with rainbows outside -->
+        <g>
+          <path d="M120 360 V190 a70 70 0 0 1 140 0 V360 Z" fill="url(#win)" stroke="#fff" stroke-width="10"/>
+          <path d="M140 300 a50 50 0 0 1 100 0" stroke="#FF5E7E" stroke-width="7" fill="none"/>
+          <path d="M148 300 a42 42 0 0 1 84 0" stroke="#FFD93D" stroke-width="7" fill="none"/>
+          <path d="M156 300 a34 34 0 0 1 68 0" stroke="#4D96FF" stroke-width="7" fill="none"/>
+          <path d="M740 360 V190 a70 70 0 0 1 140 0 V360 Z" fill="url(#win)" stroke="#fff" stroke-width="10"/>
+          <circle cx="810" cy="230" r="22" fill="#FFE07A"/>
+          <ellipse cx="780" cy="300" rx="34" ry="14" fill="#fff"/><ellipse cx="830" cy="296" rx="26" ry="12" fill="#fff"/>
+        </g>
+        <!-- banners -->
+        <g>
+          <path d="M330 48 h70 v130 l-35 -24 l-35 24z" fill="#A66CFF"/><path d="M600 48 h70 v130 l-35 -24 l-35 24z" fill="#4D96FF"/>
+          <path d="M365 90 l8 16 l18 2 l-13 12 l4 18 l-17 -9 l-17 9 l4 -18 l-13 -12 l18 -2z" fill="#FFE07A"/>
+          <path d="M635 108 c-14 -18 -34 -4 -20 14 l20 18 l20 -18 c14 -18 -6 -32 -20 -14z" fill="#FF8AC8"/>
+        </g>
+        <!-- throne -->
+        <g transform="translate(500 0)">
+          <path d="M-70 400 V180 a70 70 0 0 1 140 0 V400 Z" fill="#FF6FB5"/>
+          <path d="M-52 400 V196 a52 52 0 0 1 104 0 V400 Z" fill="#FFB2DA"/>
+          <path d="M-30 150 l10 -40 l20 26 l20 -26 l10 40z" fill="#F5B921"/>
+          <rect x="-84" y="340" width="168" height="40" rx="14" fill="#A66CFF"/>
+        </g>
+        <!-- floor -->
+        <rect y="400" width="1000" height="200" fill="url(#floor)"/>
+        <path d="M300 600 L420 400 H580 L700 600 Z" fill="#FF6FB5" opacity=".85"/>
+        <path d="M330 600 L436 412 H564 L670 600 Z" fill="none" stroke="#FFE07A" stroke-width="6" stroke-dasharray="14 12"/>
+      </svg>
+      <div class="family" data-family></div>
+    </div>
+    <footer class="castle-actions">
+      <button class="egg-btn" data-action="egg" aria-label="Surprise egg">
+        <svg viewBox="0 0 120 150" aria-hidden="true"><use href="#egg-shape"/></svg>
+        <span class="badge" data-egg-badge>!</span>
+      </button>
+      <p class="hint"><span class="say" data-say>Tap someone to dress them up!</span></p>
+      <button class="show-btn" data-action="show" aria-label="Fashion show">
+        <span aria-hidden="true">🌟</span><span>Show</span>
+      </button>
+    </footer>
+  </section>
+
+  <!-- Dress up -->
+  <section id="screen-dress" class="screen dress" hidden>
+    <header class="bar">
+      <button class="round-btn" data-action="home" aria-label="Back to the castle">🏰</button>
+      <div class="theme-banner" data-theme-banner hidden></div>
+      <div class="coins" aria-label="Coins"><span class="coin-icon">🪙</span><b data-coins>0</b></div>
+    </header>
+    <div class="stage">
+      <div class="item-label" data-item-label></div>
+      <div class="model" data-model></div>
+      <button class="done-btn" data-action="done">✓ Done</button>
+    </div>
+    <div class="panel">
+      <nav class="tabs" data-tabs></nav>
+      <div class="items" data-items></div>
+    </div>
+  </section>
+
+  <!-- Fashion show: pick a model -->
+  <section id="screen-show" class="screen show" hidden>
+    <header class="bar">
+      <button class="round-btn" data-action="home" aria-label="Back to the castle">🏰</button>
+      <div class="coins" aria-label="Coins"><span class="coin-icon">🪙</span><b data-coins>0</b></div>
+    </header>
+    <div class="show-card">
+      <p class="eyebrow"><span class="say" data-say>Fashion Show!</span></p>
+      <div class="theme-big" data-theme-big></div>
+      <p class="pick"><span class="say" data-say>Who will walk the runway?</span></p>
+      <div class="pick-row" data-pick></div>
+    </div>
+  </section>
+
+  <!-- Runway -->
+  <section id="screen-runway" class="screen runway" hidden>
+    <div class="curtain left"></div><div class="curtain right"></div>
+    <div class="lights" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="runway-model" data-runway-model></div>
+    <div class="judges" data-judges></div>
+    <div class="result" data-result hidden></div>
+  </section>
+
+</main>
+
+<!-- Pop-ups -->
+<div class="sheet" id="sheet-buy" hidden>
+  <div class="sheet-card">
+    <div class="sheet-thumb" data-buy-thumb></div>
+    <p class="sheet-title"><span class="say" data-say data-buy-name></span></p>
+    <p class="price">🪙 <b data-buy-price></b></p>
+    <p class="need" data-buy-need hidden></p>
+    <div class="sheet-actions">
+      <button class="big-btn no" data-action="buy-no" aria-label="No thanks">✕</button>
+      <button class="big-btn yes" data-action="buy-yes" aria-label="Buy it">✓ Buy</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet" id="sheet-reward" hidden>
+  <div class="sheet-card reward">
+    <p class="sheet-title big"><span class="say" data-say data-reward-title></span></p>
+    <div data-reward-body></div>
+    <button class="big-btn yes" data-action="close-reward">Yay!</button>
+  </div>
+</div>
+
+<div class="sheet" id="sheet-egg" hidden>
+  <div class="sheet-card egg-card">
+    <p class="sheet-title"><span class="say" data-say data-egg-title>Tap the egg!</span></p>
+    <button class="egg-big" data-action="crack" aria-label="Crack the egg">
+      <svg viewBox="0 0 120 150" aria-hidden="true"><use href="#egg-shape"/></svg>
+    </button>
+    <div class="egg-prize" data-egg-prize hidden></div>
+    <button class="big-btn yes" data-action="close-egg" data-egg-close hidden>Yay!</button>
+  </div>
+</div>
+
+<div class="sheet" id="sheet-grownups" hidden>
+  <div class="sheet-card grownup-card">
+    <h2>Grown-ups</h2>
+    <label class="row"><input type="checkbox" id="set-autoread"> Read item names out loud when tapped</label>
+    <label class="row"><input type="checkbox" id="set-music"> Play music</label>
+    <h3>Names</h3>
+    <div class="names" data-names></div>
+    <h3>Coins</h3>
+    <div class="row-btns">
+      <button class="small-btn" data-action="gift-coins">Give 50 coins</button>
+      <button class="small-btn danger" data-action="reset">Start over</button>
+    </div>
+    <p class="confirm" data-reset-confirm hidden>This erases all coins, unlocked items and outfits.
+      <button class="small-btn danger" data-action="reset-yes">Yes, start over</button>
+      <button class="small-btn" data-action="reset-no">Keep my game</button></p>
+    <button class="big-btn yes" data-action="close-grownups">Close</button>
+  </div>
+</div>
+
+<div class="confetti" data-confetti aria-hidden="true"></div>
+
+<svg width="0" height="0" class="defs" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="egg-fill" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFB8E0"/><stop offset=".5" stop-color="#D2B6FF"/><stop offset="1" stop-color="#9FD8FF"/>
+    </linearGradient>
+    <g id="egg-shape">
+      <path d="M60 6 C24 6 6 64 6 94 C6 126 30 146 60 146 C90 146 114 126 114 94 C114 64 96 6 60 6 Z" fill="url(#egg-fill)" stroke="#fff" stroke-width="5"/>
+      <path d="M12 86 l16 -10 l16 10 l16 -10 l16 10 l16 -10 l16 10 l10 -6" stroke="#FFE07A" stroke-width="7" fill="none" stroke-linejoin="round"/>
+      <circle cx="34" cy="112" r="7" fill="#fff" opacity=".8"/><circle cx="84" cy="120" r="5" fill="#fff" opacity=".8"/><circle cx="62" cy="52" r="6" fill="#fff" opacity=".8"/>
+      <path d="M40 30 Q48 18 60 16" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" opacity=".8"/>
+    </g>
+  </defs>
+</svg>
+<!--GAME-END-->
+
+<script src="js/data.js"></script>
+<script src="js/avatar.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/game.js"></script>
+<script>
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+</script>
+</body>
+</html>
