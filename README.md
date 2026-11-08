@@ -6,6 +6,7 @@ works like a regular app, even offline.
 
 - [Game plan](docs/game-plan.md) (written for kids)
 - [Interview notes](docs/interview-notes.md)
+- [Handoff for a new session](docs/handoff.md)
 - [Art prompts](docs/art-prompts.md) for painted backgrounds made with an AI image generator
 
 ## Put it on the iPad and phone
