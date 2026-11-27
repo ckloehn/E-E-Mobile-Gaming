@@ -159,8 +159,14 @@ svg { display: block; overflow: visible; }
   position: absolute; bottom: calc(2% + var(--d, 0) * 14%);
   transform: translateX(-50%) scale(calc(1 - var(--d, 0) * .22)); transform-origin: 50% 100%;
   transition-property: left, bottom, transform; transition-timing-function: linear;
-  pointer-events: auto;
+  pointer-events: none;
 }
+/* In the castle only the visible body, the name, bubbles and the bone can be tapped */
+.actor .person, .actor .bubble, .actor .trick-btn, .actor .person .name { pointer-events: auto; }
+.actor .person:has(svg.has-hit) { pointer-events: none; }
+.actor .person svg.has-hit { pointer-events: none; }
+.actor .person svg.has-hit .hit { pointer-events: all; }
+.actor .person .name { position: relative; }
 .actor .person svg { filter: drop-shadow(0 10px 8px rgba(75,42,107,.28)) drop-shadow(-6px 0 10px rgba(255,255,255,.25)); }
 
 /* A soft reflection on the shiny marble floor */
@@ -326,9 +332,44 @@ image[data-tk]:not([href^="blob:"]) { opacity: .15; }
 .coming-soon { grid-column: 1 / -1; text-align: center; font-size: 22px; font-weight: 700; margin: 24px 0; }
 .none-mark { position: absolute; top: 4px; right: 8px; font-size: 18px; color: #FF4757; font-weight: 700; }
 
+/* ---------- The dog ----------
+   His picture shows only the bottom part of the family's canvas, so it is that much shorter (1180 / 2560)
+   and he stands at a real dog's size next to everyone. */
+.person svg.dog-crop { height: calc(min(56vh, 60vw) * .461); }
+.person.mini svg.dog-crop { height: calc(min(38vh, 50vw) * .461); }
+.dog-tail { transform-box: fill-box; transform-origin: 0% 100%; animation: wag .45s ease-in-out infinite alternate; }
+@keyframes wag { from { transform: rotate(-6deg); } to { transform: rotate(10deg); } }
+.walking .dog-tail, .trick-dance .dog-tail { animation-duration: .2s; }
+.walking .doll.dog-drawn, .walking .doll.dog-painted { animation: trot .2s ease-in-out infinite alternate; }
+@keyframes trot { from { transform: translateY(0); } to { transform: translateY(-26px); } }
+.walking .dog-drawn .leg-l, .walking .dog-drawn .leg-r { animation-duration: .4s; }
+.trick-btn {
+  position: absolute; top: -6px; right: -18px; width: 52px; height: 52px; border-radius: 50%;
+  background: var(--paper); box-shadow: var(--glow); font-size: 28px; z-index: 3;
+  display: grid; place-items: center; animation: breathe 2s ease-in-out infinite;
+}
+.model { position: relative; }
+.model .trick-btn { top: 8px; right: 12px; width: 64px; height: 64px; font-size: 34px; }
+/* Tricks: they come after the walking moves so a tapped trick wins */
+.trick-sit .doll[class] { animation: t-sit 1.6s ease-in-out both; }
+@keyframes t-sit { 15%, 85% { transform: scale(1.05, .84); } }
+.trick-spin .doll[class] { transform-origin: 50% 60%; animation: t-spin 1.3s ease-in-out both; }
+@keyframes t-spin { 50% { transform: translateY(-160px) rotate(180deg); } 100% { transform: rotate(360deg); } }
+.trick-roll .doll[class] { transform-origin: 50% 70%; animation: t-roll 1.5s ease-in-out both; }
+@keyframes t-roll { 25% { transform: translateY(40px) scale(1.05, .9); } 60% { transform: translateX(120px) rotate(200deg); } 100% { transform: rotate(360deg); } }
+.trick-jump .doll[class] { animation: t-jump .55s ease-in-out 3 both; }
+@keyframes t-jump { 50% { transform: translateY(-240px) scale(.96, 1.04); } }
+.trick-dance .doll[class] { animation: t-dance .3s ease-in-out 6 alternate both; }
+@keyframes t-dance { to { transform: translateY(-120px) rotate(-6deg); } }
+.trick-paw .dog-paw { animation: t-paw 1.6s ease-in-out both; }
+@keyframes t-paw { 20%, 80% { transform: rotate(-62deg); } }
+.trick-paw .doll.dog-painted { transform-origin: 50% 100%; animation: t-paint-paw 1.6s ease-in-out both; }
+@keyframes t-paint-paw { 20%, 80% { transform: rotate(-7deg) translateY(-30px); } }
+
 /* Phones held upright */
 @media (orientation: portrait) and (max-width: 600px) {
   .person svg { height: min(46vh, 66vw); }
+  .person svg.dog-crop { height: calc(min(46vh, 66vw) * .461); }
   .bubble { max-width: 58vw; }
 }
 
@@ -345,6 +386,7 @@ image[data-tk]:not([href^="blob:"]) { opacity: .15; }
   .dress .panel { height: auto; border-radius: 22px 0 0 0; }
   .round-btn { width: 46px; height: 46px; font-size: 22px; }
   .person svg { height: 58vh; }
+  .person svg.dog-crop { height: calc(58vh * .461); }
 }
 
 /* ---------- Fashion show: pick a model ---------- */
@@ -360,6 +402,7 @@ image[data-tk]:not([href^="blob:"]) { opacity: .15; }
 .pick { margin: 0; font-size: clamp(20px, 3vw, 28px); font-weight: 700; }
 .pick-row { display: flex; gap: 14px; justify-content: center; align-items: flex-end; flex-wrap: wrap; }
 .person.mini svg { height: min(38vh, 50vw); }
+.person.mini svg.dog-crop { height: calc(min(38vh, 50vw) * .461); }
 
 /* ---------- Runway ---------- */
 .runway {

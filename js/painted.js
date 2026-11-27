@@ -62,6 +62,21 @@ const PAINTED_CATALOG = [
   ['kid', 'hat-tiara', 'hat', 'Tiara', 10, { style: 'tiara', color: 'silver' }],
   ['kid', 'hat-bow-tint', 'hat', 'Hair Bow', 0, { style: 'bow', tint: true }],
   ['kid', 'extra-wings', 'extra', 'Fairy Wings', 20, { style: 'fairywings', slot: 'back' }],
+
+  // The dog. Drawn in code (js/dog.js) until painted pieces exist in art/dolls/dog/.
+  ['dog', 'top-sweater-tint', 'top', 'Sweater', 0, { style: 'long', tint: true }],
+  ['dog', 'top-tutu-tint', 'top', 'Tutu', 5, { style: 'tutu', tint: true }],
+  ['dog', 'shoes-booties-tint', 'shoes', 'Booties', 5, { style: 'boots', tint: true }],
+  ['dog', 'hat-crown', 'hat', 'Gold Crown', 15, { style: 'crown', color: 'gold', pattern: 'glitter' }],
+  ['dog', 'hat-tiara', 'hat', 'Tiara', 10, { style: 'tiara', color: 'silver' }],
+  ['dog', 'hat-party-tint', 'hat', 'Party Hat', 0, { style: 'cone', tint: true }],
+  ['dog', 'hat-bow-tint', 'hat', 'Big Bow', 0, { style: 'bow', tint: true }],
+  ['dog', 'hat-flowers', 'hat', 'Flower Crown', 5, { style: 'flowers' }],
+  ['dog', 'extra-collar-tint', 'extra', 'Collar', 0, { style: 'collar', tint: true, slot: 'chest' }],
+  ['dog', 'extra-bandana-tint', 'extra', 'Bandana', 0, { style: 'scarf', tint: true, slot: 'chest' }],
+  ['dog', 'extra-cape-tint', 'extra', 'Royal Cape', 10, { style: 'cape', tint: true, slot: 'back' }],
+  ['dog', 'extra-sunglasses', 'extra', 'Heart Sunglasses', 10, { style: 'heartglasses', color: 'pink', slot: 'face' }],
+  ['dog', 'extra-wings', 'extra', 'Fairy Wings', 20, { style: 'fairywings', slot: 'back' }],
 ];
 
 // Colors for the gray "-tint" pieces: [color, extra price]
@@ -107,7 +122,7 @@ const Painted = (() => {
   const files = item => item.cat === 'hair' ? [`${item.body}/${item.file}-back`, `${item.body}/${item.file}-front`] : [`${item.body}/${item.file}`];
   const hasHair = body => PAINTED_CATALOG.some(([b, file, cat]) => b === body && cat === 'hair' && has(`${b}/${file}-back`) && has(`${b}/${file}-front`));
   // The kid doll is painted bald (hair is separate), so she waits until a hairstyle exists.
-  const bodyReady = body => has(`${body}/base`) && (body === 'man' || hasHair(body));
+  const bodyReady = body => has(`${body}/base`) && (body === 'man' || body === 'dog' || hasHair(body));
   const available = item => item.body === '*' || files(item).every(has);
 
   // ----- Coloring the gray pieces (done once per piece and color, then reused) -----
@@ -198,11 +213,19 @@ const Painted = (() => {
     return s;
   }
 
-  const svg = (viewBox, inner, clip) =>
-    `<svg viewBox="${viewBox}"${clip ? ' style="overflow:hidden"' : ''} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${inner}</svg>`;
+  const svg = (viewBox, inner, clip, cls) =>
+    `<svg viewBox="${viewBox}"${cls ? ` class="${cls}"` : ''}${clip ? ' style="overflow:hidden"' : ''} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${inner}</svg>`;
 
-  function full(body, look) {
-    return svg('0 -40 1024 2560', `<g class="doll painted"><ellipse cx="512" cy="2448" rx="190" ry="26" fill="rgba(60,20,70,.2)"/>${stack(body, look)}</g>`);
+  // Only the doll's own body can be tapped, not the empty parts of the picture around her
+  // (otherwise someone standing nearby can't be tapped).
+  function hit(body) {
+    const [x0, y0, x1, y1] = DOLL_ART[`${body}/base`];
+    return `<rect class="hit" x="${x0 - 30}" y="${y0 - 30}" width="${x1 - x0 + 60}" height="${y1 - y0 + 50}" fill="transparent"/>`;
+  }
+
+  function full(body, look, view = '0 -40 1024 2560', cls = '', svgCls = '') {
+    return svg(view, `<g class="doll painted${cls ? ' ' + cls : ''}"><ellipse cx="512" cy="2448" rx="190" ry="26" fill="rgba(60,20,70,.2)"/>${stack(body, look)}${hit(body)}</g>`,
+      false, ['has-hit', svgCls].filter(Boolean).join(' '));
   }
 
   // A square view around a box on the canvas, with a little room to spare.
@@ -215,6 +238,7 @@ const Painted = (() => {
 
   function headBox(body) {
     const [, top] = DOLL_ART[`${body}/base`];
+    if (body === 'dog') return [312, top - 40, 712, top + 420];
     return [362, top - 40, 662, top + 300];
   }
 
@@ -245,15 +269,30 @@ const Painted = (() => {
 })();
 
 // One place for the rest of the game to ask "how do I draw this person?"
+// The dog always uses his "plook" (the same items work on the drawn and the painted dog).
+const isDog = c => c.body === 'dog';
 const Doll = {
   painted: c => !!c.body && Painted.bodyReady(c.body),
-  look: c => (Doll.painted(c) ? c.plook : c.look),
-  setLook(c, look) { if (Doll.painted(c)) c.plook = look; else c.look = look; },
-  full: (c, look) => (Doll.painted(c) ? Painted.full(c.body, look || c.plook) : Avatar.svg(look || c.look, c.kind)),
-  thumb: (c, look, item) => (item.painted ? Painted.thumb(c.body, look, item) : Avatar.thumb(look, item)),
-  head: c => (Doll.painted(c) ? Painted.head(c.body, c.plook) : Avatar.head(c.look, c.kind)),
+  look: c => (isDog(c) || Doll.painted(c) ? c.plook : c.look),
+  setLook(c, look) { if (isDog(c) || Doll.painted(c)) c.plook = look; else c.look = look; },
+  full(c, look) {
+    if (isDog(c)) {
+      if (!Doll.painted(c)) return DogArt.full(look || c.plook);
+      return Painted.full('dog', look || c.plook, DOG_VIEW, 'dog-painted', 'dog-crop');
+    }
+    return Doll.painted(c) ? Painted.full(c.body, look || c.plook) : Avatar.svg(look || c.look, c.kind);
+  },
+  thumb(c, look, item) {
+    if (isDog(c) && !Doll.painted(c)) return DogArt.thumb(look, item);
+    return item.painted ? Painted.thumb(c.body, look, item) : Avatar.thumb(look, item);
+  },
+  head(c) {
+    if (isDog(c) && !Doll.painted(c)) return DogArt.head(c.plook);
+    return Doll.painted(c) ? Painted.head(c.body, c.plook) : Avatar.head(c.look, c.kind);
+  },
   // Which items can this person wear right now?
   fits(c, item) {
+    if (isDog(c)) return item.body === 'dog' && (Doll.painted(c) ? Painted.available(item) : DogArt.draws(item));
     if (!Doll.painted(c)) return !item.painted;
     if (!item.painted || !Painted.available(item)) return false;
     if (item.body === '*') return ITEMS.some(i => i.cat === 'hair' && i.body === c.body && Painted.available(i));

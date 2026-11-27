@@ -23,6 +23,11 @@ offline.
 
 - **The family:** Mommy, Daddy, Me and Sister. Everyone is fair-skinned with blonde hair and blue eyes.
   Daddy has a shaved head (blonde buzz cut). Me and Sister are about 6 years old.
+- **The dog:** a white, fluffy family dog (like an American Eskimo dog with a less fluffy tail). He's called
+  "Puppy" in the code; his real name goes in the grown-ups menu like everyone's. He walks around the castle,
+  talks with the family (`DOG_CHATS` in `js/data.js`), does tricks (tap the 🦴, also on the dress-up screen),
+  can be dressed (sweaters, tutu, booties, hats, collars, cape, wings) and can walk the runway. He's drawn in
+  code (`js/dog.js`) until the art agent paints him (`docs/dog-art-prompt.md`); the same items work on both.
 - **Castle:** a rainbow castle hall. The family walks around, waves, dances and has short chats in speech
   bubbles. They always **face the camera** (she asked for this). They move in depth: further back is
   higher up the floor and smaller. They have soft floor reflections.
@@ -59,7 +64,7 @@ There are two kinds of dolls:
 2. **Drawn dolls** (the older fallback): SVG drawn by code in `js/avatar.js`, with the items in
    `js/data.js`. They're kept so nothing breaks while art is missing.
 
-The art agent's instructions are in `docs/doll-kit-prompt.md` and `docs/doll-wardrobe-prompt.md`. The
+The art agent's instructions are in `docs/doll-kit-prompt.md`, `docs/doll-wardrobe-prompt.md` and `docs/dog-art-prompt.md`. The
 second one ends with a "Fixes needed" list; both fixes there are done. Background prompts are in
 `docs/art-prompts.md`. **The art agent never changes code.** When it pushes pictures, pull, run the build
 script, check the pieces stacked together, then commit and push.
@@ -74,6 +79,7 @@ script, check the pieces stacked together, then commit and push.
 | `js/avatar.js` | Drawn dolls |
 | `js/doll-art.js` | Made by `tools/build_dolls.py`. Don't edit by hand. |
 | `js/painted.js` | Painted dolls and the `Doll` entry point |
+| `js/dog.js` | The drawn dog and his drawn items |
 | `js/audio.js` | Generated music, sound effects and read-aloud (speechSynthesis) |
 | `js/game.js` | Saving and version migrations, castle movement (`Castle`), dress-up, coins, egg, fashion show, grown-ups menu |
 | `sw.js` | Offline support. **Bump `VERSION` whenever game files change**, or devices keep old files. |
@@ -85,7 +91,7 @@ script, check the pieces stacked together, then commit and push.
   `display`.
 - SVG gradients defined inside a drawing on a hidden screen don't paint for other drawings. Shared
   gradients live in the page-level `<defs>`, and painted-doll color gradients go in `#dyn-defs`.
-- Saved games live in `localStorage` under `egg-house-v1` and are migrated by version (now version 3).
+- Saved games live in `localStorage` under `egg-house-v1` and are migrated by version (now version 4, which added the dog).
   Add a migration whenever the family's defaults change. Keep custom names.
 - The ⚙️ gear is press-and-hold on purpose, so little fingers don't open it by accident.
 

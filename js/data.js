@@ -176,6 +176,9 @@ const DEFAULT_CHARACTERS = [
     skin: 'skin-peach', eyes: 'eyes-lashes', eyeColor: 'eyec-blue', hair: 'hair-ponytail', hairColor: 'hairc-blonde',
     lips: 'lips-none', face: 'face-blush', top: 'top-tee-pink', dress: null, bottom: 'bottom-skirt-purple',
     shoes: 'shoes-sneakers-white', nails: 'nails-pink', hat: 'hat-none', extra: 'extra-none' } },
+  // The family dog. Give him his real name in the grown-ups menu (it stays on the device).
+  { id: 'dog', name: 'Puppy', kind: 'dog', body: 'dog',
+    plook: { top: null, shoes: null, hat: null, extra: 'p-dog-extra-collar-tint-blue' }, look: {} },
 ];
 
 // Fashion show themes. Each one scores 0 to 3 for how well an outfit fits.
@@ -222,3 +225,26 @@ const CHATS = [
   ['Good morning!', 'Good morning! Did you sleep well?'],
   ['Hug time!', 'Big hug!'],
 ];
+
+// What the family and the dog say to each other. The person talks first, then the dog.
+// {dog} becomes the dog's name. A third word makes him do that trick after talking.
+const DOG_CHATS = [
+  ['Hi, {dog}!', 'Woof! Hi! I love you!'],
+  ['Who is a good boy?', 'Me! Woof woof!'],
+  ['Do you want a treat?', 'Yes please! Woof!'],
+  ['Let\'s go for a walk!', 'Yay! I love walks!'],
+  ['Can you sit?', 'I can sit! Look!', 'sit'],
+  ['Can you spin?', 'Woof! Watch me spin!', 'spin'],
+  ['Shake my hand!', 'Here is my paw!', 'paw'],
+  ['Can you roll over?', 'Yes! Roll, roll!', 'roll'],
+  ['Jump, {dog}, jump!', 'Boing! Boing!', 'jump'],
+  ['You look so cute!', 'Thank you! Woof!'],
+  ['Do you want to play ball?', 'Ball! Ball! Ball!'],
+  ['Time for a bath!', 'Oh no! Woof!'],
+  ['I love you, {dog}!', 'I love you too! Lick lick!'],
+  ['Want to go to the fashion show?', 'Yes! I will wear my bow!'],
+];
+
+// Dog tricks: [id, the word in his speech bubble]
+const TRICKS = [['sit', 'Sit!'], ['spin', 'Spin!'], ['roll', 'Roll over!'], ['paw', 'Shake!'], ['jump', 'Jump!'], ['dance', 'Dance!']];
+const BARKS = ['Woof!', 'Woof woof!', 'Arf arf!', 'Bark bark!'];

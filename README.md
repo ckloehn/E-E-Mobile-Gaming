@@ -44,6 +44,7 @@ Plain HTML, CSS and JavaScript with no build step and no libraries.
 | `js/data.js` | Every item, price, character and fashion show theme |
 | `js/avatar.js` | Draws the characters, with arms, legs and head as separate moving parts |
 | `js/audio.js` | Music, sound effects and read-aloud |
+| `js/dog.js` | Draws the family dog and his clothes (painted pictures replace him when they exist) |
 | `js/game.js` | Coins, unlocking, the surprise egg, the fashion show, and the family walking and chatting |
 | `art/` | Optional painted backgrounds. The game uses them when they're present |
 | `sw.js` | Lets the game work offline. Change `VERSION` when you update files. |
@@ -53,7 +54,7 @@ To try it on a computer, run `python3 -m http.server` in this folder and open ht
 ## Painted dolls
 
 Painted doll pictures go in `art/dolls/woman/`, `art/dolls/man/` and `art/dolls/kid/`
-(see `docs/doll-wardrobe-prompt.md` for the file names). After adding pictures, run:
+(see `docs/doll-wardrobe-prompt.md` for the file names; the dog goes in `art/dolls/dog/`, see `docs/dog-art-prompt.md`). After adding pictures, run:
 
 ```
 python3 tools/build_dolls.py

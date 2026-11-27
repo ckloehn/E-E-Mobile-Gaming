@@ -25,7 +25,7 @@ WEB = (512, 1280)
 
 art = {}
 problems = []
-for body in ['woman', 'man', 'kid']:
+for body in ['woman', 'man', 'kid', 'dog']:
     folder = SRC / body
     if not folder.is_dir():
         continue

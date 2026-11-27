@@ -16,7 +16,7 @@ function freshState() {
     lastEgg: '',
     rewarded: {},
     settings: { autoRead: false, music: true },
-    version: 3,
+    version: 4,
   };
 }
 
@@ -37,7 +37,7 @@ function migrate(saved) {
 
 // Version 3 added painted dolls and made the family fair-skinned and blonde with blue eyes.
 function migrate3(saved) {
-  if ((saved.version || 1) >= 3) return saved;
+  if ((saved.version || 1) >= 3) return migrate4(saved);
   for (const c of saved.chars) {
     const d = DEFAULT_CHARACTERS.find(x => x.id === c.id);
     if (!d) continue;
@@ -46,6 +46,14 @@ function migrate3(saved) {
     if (c.id === 'daddy') { c.look = clone(d.look); c.kind = d.kind; }
   }
   saved.version = 3;
+  return migrate4(saved);
+}
+
+// Version 4 added the family dog.
+function migrate4(saved) {
+  if ((saved.version || 1) >= 4) return saved;
+  if (!saved.chars.some(c => c.id === 'dog')) saved.chars.push(clone(DEFAULT_CHARACTERS.find(c => c.id === 'dog')));
+  saved.version = 4;
   return saved;
 }
 
@@ -166,6 +174,7 @@ function renderCastle() {
         <span class="flip">${Doll.full(c)}<span class="reflection" aria-hidden="true">${Doll.full(c)}</span></span>
         <span class="name">${escapeHtml(c.name)}</span>
       </button>
+      ${isDog(c) ? `<button class="trick-btn" data-action="trick" data-i="${i}" aria-label="Do a trick">🦴</button>` : ''}
     </div>`).join('');
   $('[data-egg-badge]').hidden = state.lastEgg === today();
   $('.egg-btn').classList.toggle('ready', state.lastEgg !== today());
@@ -178,8 +187,8 @@ function renderCastle() {
 // They always face the camera, like dolls on a stage.
 const Castle = (() => {
   // x is across the room (percent), d is how far back (0 = front, 1 = back by the throne).
-  const home = [16, 38, 62, 84];
-  const homeDepth = [0.4, 0.65, 0.05, 0.25];
+  const home = [16, 38, 62, 84, 50];
+  const homeDepth = [0.4, 0.65, 0.05, 0.25, 0.12];
   let actors = [];
   let timers = [];
   let ticker = null;
@@ -191,7 +200,7 @@ const Castle = (() => {
 
   function start() {
     stop();
-    actors = state.chars.map((c, i) => ({ i, el: $(`[data-actor="${i}"]`), x: spot(i), d: depth(i), busy: false }));
+    actors = state.chars.map((c, i) => ({ i, el: $(`[data-actor="${i}"]`), x: spot(i), d: depth(i), busy: false, dog: isDog(c) }));
     if (!actors.length || !actors[0].el) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     later(direct, 1200);
@@ -202,7 +211,7 @@ const Castle = (() => {
     clearInterval(ticker);
     timers.forEach(clearTimeout);
     timers = [];
-    actors.forEach(a => a.el && a.el.classList.remove('walking', 'waving', 'dancing', 'talking'));
+    actors.forEach(a => a.el && a.el.classList.remove('walking', 'waving', 'dancing', 'talking', ...TRICKS.map(t => 'trick-' + t[0])));
     $$('.actor .bubble').forEach(b => { b.hidden = true; });
   }
 
@@ -236,7 +245,15 @@ const Castle = (() => {
     later(() => { b.hidden = true; a.el.classList.remove('talking'); }, ms);
   }
 
+  // The dog does a trick. With a word, it shows in his speech bubble too.
+  function trick(a, id, word, then) {
+    const [tid, tword] = TRICKS.find(t => t[0] === id) || pick(TRICKS);
+    if (word !== false) say(a, word || tword, 1800);
+    act(a, 'trick-' + tid, 1700, then);
+  }
+
   function chat(a, b) {
+    if (a.dog || b.dog) return dogChat(a.dog ? b : a, a.dog ? a : b);
     a.busy = b.busy = true;
     const side = a.x < b.x ? -1 : 1;
     let target = b.x + side * 17;
@@ -249,6 +266,23 @@ const Castle = (() => {
         later(() => { a.busy = b.busy = false; }, 1700);
       }, lines.length * 3100);
     }, b.d);
+  }
+
+  // Someone walks over to the dog and they talk. Sometimes he shows off a trick.
+  function dogChat(p, dog) {
+    p.busy = dog.busy = true;
+    const side = p.x < dog.x ? -1 : 1;
+    let target = dog.x + side * 14;
+    if (target < 9 || target > 91) target = dog.x - side * 14;
+    walk(p, target, () => {
+      const [first, reply, trickId] = pick(DOG_CHATS);
+      const name = state.chars[dog.i].name;
+      [first, reply].forEach((line, k) => later(() => say(k ? dog : p, line.replace('{dog}', name), 2900), k * 3100));
+      later(() => {
+        if (trickId) trick(dog, trickId, false);
+        later(() => { p.busy = dog.busy = false; }, 1800);
+      }, 2 * 3100);
+    }, dog.d);
   }
 
   // A place on the floor that isn't right on top of someone else.
@@ -271,12 +305,28 @@ const Castle = (() => {
     a.busy = true;
     const done = () => { a.busy = false; };
     const r = Math.random();
+    if (a.dog) {
+      if (r < 0.5) { const [x, d] = openSpot(a); walk(a, x, done, d); }
+      else if (r < 0.75) trick(a, pick(TRICKS)[0], undefined, done);
+      else { say(a, pick(BARKS), 1600); act(a, 'waving', 1600, done); }
+      return;
+    }
     if (r < 0.6) { const [x, d] = openSpot(a); walk(a, x, done, d); }
     else if (r < 0.82) act(a, 'waving', 2200, done);
     else act(a, 'dancing', 2400, done);
   }
 
-  return { start, stop, spot, depth, layer, chat: (i, j) => chat(actors[i], actors[j]) };
+  // Tapping the bone: the dog barks and does a trick, even in the middle of walking.
+  function tapTrick(i) {
+    const a = actors.find(o => o.i === i);
+    if (!a || !a.el) return;
+    TRICKS.forEach(t => a.el.classList.remove('trick-' + t[0]));
+    const was = a.busy;
+    a.busy = true;
+    trick(a, pick(TRICKS)[0], undefined, () => { if (!was) a.busy = false; });
+  }
+
+  return { start, stop, spot, depth, layer, tapTrick, chat: (i, j) => chat(actors[i], actors[j]) };
 })();
 
 function escapeHtml(s) {
@@ -305,7 +355,8 @@ function startDressing(i, mode = 'play') {
 
 function renderModel(pop) {
   const m = $('[data-model]');
-  m.innerHTML = Doll.full(ui.char);
+  m.innerHTML = Doll.full(ui.char) +
+    (isDog(ui.char) ? '<button class="trick-btn" data-action="model-trick" aria-label="Do a trick">🦴</button>' : '');
   if (pop) { m.classList.remove('pop'); void m.offsetWidth; m.classList.add('pop'); }
 }
 
@@ -557,6 +608,21 @@ document.addEventListener('click', e => {
       break;
     }
     case 'dress': Sound.play('tap'); startDressing(+btn.dataset.i); break;
+    case 'trick': Sound.play('woof'); Castle.tapTrick(+btn.dataset.i); break;
+    case 'model-trick': {
+      Sound.play('woof');
+      const m = $('[data-model]');
+      const [id, word] = pick(TRICKS);
+      TRICKS.forEach(t => m.classList.remove('trick-' + t[0]));
+      void m.offsetWidth;
+      m.classList.add('trick-' + id);
+      const label = $('[data-item-label]');
+      label.innerHTML = `<span class="say">${word}</span>`;
+      decorate(label);
+      if (state.settings.autoRead) sayEl($('.say', label));
+      setTimeout(() => m.classList.remove('trick-' + id), 1700);
+      break;
+    }
     case 'home': Sound.play('tap'); cancelPreview(); goHome(); break;
     case 'tab': Sound.play('tap'); ui.tab = btn.dataset.tab; renderTabs(); renderItems(); break;
     case 'item': tapItem(btn.dataset.id); break;

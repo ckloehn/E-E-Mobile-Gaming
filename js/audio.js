@@ -49,6 +49,11 @@ const Sound = (() => {
     sparkle: t => [84, 88, 91, 96, 100].forEach((n, i) => tone(N(n), t + i * 0.05, 0.3, { type: 'sine', vol: 0.15 })),
     buy: t => [76, 80, 83, 88].forEach((n, i) => tone(N(n), t + i * 0.07, 0.25, { vol: 0.22 })),
     star: t => { tone(N(84), t, 0.4, { type: 'sine', vol: 0.25 }); tone(N(91), t + 0.05, 0.4, { type: 'sine', vol: 0.15 }); },
+    // A friendly little bark: two quick yips that drop in pitch.
+    woof: t => [0, 0.2].forEach(d => {
+      tone(520, t + d, 0.11, { type: 'sawtooth', vol: 0.16, slide: 0.55 });
+      tone(260, t + d, 0.12, { type: 'square', vol: 0.08, slide: 0.6 });
+    }),
     nope: t => tone(300, t, 0.2, { type: 'sine', vol: 0.2, slide: 0.7 }),
     crack: t => { tone(180, t, 0.08, { type: 'square', vol: 0.15, slide: 0.5 }); tone(240, t + 0.1, 0.08, { type: 'square', vol: 0.15, slide: 0.5 }); },
     fanfare: t => [[72, 0], [76, 0.15], [79, 0.3], [84, 0.45], [79, 0.65], [84, 0.8]]
