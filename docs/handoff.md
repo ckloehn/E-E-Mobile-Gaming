@@ -9,7 +9,7 @@ Please read this whole message, then `README.md`, before changing anything.
 
 ## Where things are
 
-- **Repository:** `ckloehn/e-e-mobile-gaming` on GitHub (currently private)
+- **Repository:** `ckloehn/e-e-mobile-gaming` on GitHub (public, so GitHub Pages is free)
 - **Branch:** `ccr-ebff52f2-nccgya`. All the work is here, and it's the repository's default branch. Work on
   this branch unless I say otherwise, and push when a change is done and tested.
 - **Everything is committed and pushed.** There's no other unsaved work.
@@ -98,9 +98,9 @@ errors and look at the screenshots. Missing `art/*.jpg` returns 404s that are ex
 
 ## Still open
 
-- **Hosting:** the plan is GitHub Pages from this branch, `/ (root)` folder. Pages needs a public
-  repository, GitHub Pro, or another host like Cloudflare Pages. I haven't decided yet. Don't put personal
-  details (her name, photos) in the repository. If those are wanted later, move to private hosting first.
+- **Hosting: done.** The game is live at https://ckloehn.github.io/E-E-Mobile-Gaming/ (GitHub Pages from this
+  branch, `/ (root)`). Every push updates it within a minute or two. The repository is public, so never put
+  personal details (her name, photos) in it.
 - **Not yet tried on her real iPad:** check how fast recolored clothes appear the first time a tab opens
   (about 0.6 s on a computer), and sound with the silent switch off.
 - **Maybe:** make Me and Sister a little bigger next to the grown-ups; add more rooms (bedroom, beach);

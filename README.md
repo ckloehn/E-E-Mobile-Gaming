@@ -11,6 +11,8 @@ works like a regular app, even offline.
 
 ## Put it on the iPad and phone
 
+**The game is live at https://ckloehn.github.io/E-E-Mobile-Gaming/** (skip to Step 2).
+
 **Step 1: Turn on GitHub Pages (one time).**
 On GitHub, open this repository, then go to **Settings → Pages**. Under "Build and deployment", choose
 **Deploy from a branch**, pick the branch with the game, choose the `/ (root)` folder and click **Save**.
